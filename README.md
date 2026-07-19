@@ -14,25 +14,18 @@ Requires Node.js 18 or later.
 Once the package has been published, run it without a global install:
 
 ```bash
-npx farsight --cwd /path/to/project
-```
-
-Or install it globally:
-
-```bash
-npm install --global farsight
-farsight --cwd /path/to/project
+npx @streetraceing/farsight --cwd /path/to/project
 ```
 
 Common options:
 
 ```bash
-farsight --cwd /path/to/project --json
-farsight --cwd /path/to/project --since=30 --top=5
-farsight --cwd /path/to/project --no-network
+npx @streetraceing/farsight --cwd /path/to/project --json
+npx @streetraceing/farsight --cwd /path/to/project --since=30 --top=5
+npx @streetraceing/farsight --cwd /path/to/project --no-network
 ```
 
-Run `farsight --help` to see every option.
+Run `npx @streetraceing/farsight --help` to see every option.
 
 ## Development
 
@@ -62,24 +55,11 @@ TypeScript is compiled into `dist/`. The `bin` entry in `package.json` points to
 
 ## Test the npm package locally
 
-To test the global command from this checkout:
-
-```bash
-npm link
-farsight --no-network
-```
-
-Remove the link when you are finished:
-
-```bash
-npm unlink --global farsight
-```
-
 To test the exact package contents, create a tarball and run it in another project:
 
 ```bash
 npm pack
-npm exec --yes --package=/absolute/path/to/farsight-0.2.0.tgz -- farsight --no-network
+npx --yes --package=/absolute/path/to/streetraceing-farsight-<version>.tgz farsight --no-network
 ```
 
 Inspect the files that would be published without creating the tarball:
