@@ -22,7 +22,11 @@
     "check": "npm run typecheck && npm test && npm run build",
     "pack:check": "npm pack --dry-run",
     "prepublishOnly": "npm run check && npm run pack:check",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "npm:patch": "npm version patch",
+    "npm:minor": "npm version minor",
+    "npm:major": "npm version major",
+    "npm:publish": "npm publish --access public"
   },
   "engines": {
     "node": ">=18"
