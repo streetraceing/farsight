@@ -1,4 +1,4 @@
-import type { DependencyStatus, FarsightReport } from './types.js';
+import type { DependencyStatus, FarsightReport, GitPeriodStats } from './types.js';
 
 type Cell = string | number | null | undefined;
 
@@ -22,7 +22,7 @@ function section(title: string): string {
 
 function table(rows: Cell[][], headers: string[]): string {
   if (rows.length === 0) return '';
-  const data = [headers, ...rows].map((row) => row.map((cell) => String(cell ?? '—')));
+  const data = [headers, ...rows].map((row) => row.map((cell) => String(cell ?? '-')));
   const widths = headers.map((_, index) => Math.min(
     36,
     Math.max(...data.map((row) => row[index]?.length ?? 0)),
@@ -47,9 +47,35 @@ function dependencyStatus(status: DependencyStatus): string {
   return dim(status);
 }
 
+function activityRows(items: readonly GitPeriodStats[], limit: number): Cell[][] {
+  return items.slice(-limit).map((item) => [
+    item.period,
+    number.format(item.commits),
+    `+${number.format(item.additions)}`,
+    `-${number.format(item.deletions)}`,
+    `${item.additions - item.deletions >= 0 ? '+' : ''}${number.format(item.additions - item.deletions)}`,
+  ]);
+}
+
+function addActivitySection(
+  lines: string[],
+  title: string,
+  label: string,
+  items: readonly GitPeriodStats[],
+  limit: number,
+): void {
+  if (items.length === 0) return;
+  const shown = Math.min(items.length, limit);
+  lines.push(section(title));
+  lines.push(dim(`Showing the latest ${shown} ${label} with activity`));
+  lines.push(table(activityRows(items, limit), [label, 'Commits', 'Added', 'Deleted', 'Net']));
+}
+
 export function renderReport(report: FarsightReport): string {
   const lines: string[] = [];
-  lines.push(bold('Farsight — project analysis'));
+
+  lines.push('');
+  lines.push(bold('Farsight - project analysis'));
   lines.push(dim(report.root));
 
   lines.push(section('Project'));
@@ -72,8 +98,8 @@ export function renderReport(report: FarsightReport): string {
         report.dependencies.items.map((item) => [
           item.name,
           item.current ?? 'not installed',
-          item.wanted ?? '—',
-          item.latest ?? '—',
+          item.wanted ?? '-',
+          item.latest ?? '-',
           dependencyStatus(item.status),
         ]),
         ['Package', 'Current', 'Wanted', 'Latest', 'Status'],
@@ -107,6 +133,10 @@ export function renderReport(report: FarsightReport): string {
     lines.push(`Contributors: ${number.format(report.git.contributorsCount)}`);
     lines.push(`Changes: ${green(`+${number.format(report.git.additions)}`)} ${red(`-${number.format(report.git.deletions)}`)}`);
     if (report.git.commits) lines.push(`Top contributor's commit share: ${percent.format(report.git.topContributorShare)}`);
+
+    addActivitySection(lines, 'Daily activity', 'Day', report.git.daily, 14);
+    addActivitySection(lines, 'Weekly activity', 'Week', report.git.weekly, 12);
+    addActivitySection(lines, 'Monthly activity', 'Month', report.git.monthly, 12);
 
     if (report.git.contributors.length) {
       lines.push(section('Contributors'));

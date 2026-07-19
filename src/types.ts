@@ -76,6 +76,13 @@ export interface Contributor {
   lastCommitAt: string | null;
 }
 
+export interface GitPeriodStats {
+  period: string;
+  commits: number;
+  additions: number;
+  deletions: number;
+}
+
 export interface GitReport {
   available: boolean;
   reason: string | null;
@@ -90,6 +97,9 @@ export interface GitReport {
   deletions: number;
   topContributorShare: number;
   contributors: Contributor[];
+  daily: GitPeriodStats[];
+  weekly: GitPeriodStats[];
+  monthly: GitPeriodStats[];
 }
 
 export interface ProjectLanguage {

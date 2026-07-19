@@ -20,4 +20,13 @@ test('parseGitLog aggregates contributors and numstat', () => {
   assert.equal(report.contributorsCount, 2);
   assert.equal(report.contributors[0]?.name, 'Alice');
   assert.equal(report.contributors[0]?.commits, 2);
+  assert.deepEqual(report.daily, [
+    { period: '2026-07-01', commits: 1, additions: 10, deletions: 2 },
+    { period: '2026-07-02', commits: 2, additions: 8, deletions: 5 },
+  ]);
+  assert.equal(report.weekly.length, 1);
+  assert.equal(report.weekly[0]?.commits, 3);
+  assert.deepEqual(report.monthly, [
+    { period: '2026-07', commits: 3, additions: 18, deletions: 7 },
+  ]);
 });

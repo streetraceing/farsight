@@ -5,7 +5,7 @@ Farsight is a TypeScript command-line tool that gives a quick overview of a proj
 - freshness of direct npm dependencies (`current`, `wanted`, and `latest`);
 - physical and non-empty source lines;
 - heuristic project-type detection;
-- local Git activity and contributor statistics.
+- local Git activity, contributor statistics, and daily, weekly, and monthly code-change totals.
 
 Requires Node.js 18 or later.
 

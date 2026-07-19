@@ -1,9 +1,11 @@
 import { run } from './process.js';
-import type { Contributor, GitReport } from './types.js';
+import type { Contributor, GitPeriodStats, GitReport } from './types.js';
 
 interface MutableContributor extends Omit<Contributor, 'activeDays'> {
   activeDays: Set<string>;
 }
+
+type MutableGitPeriodStats = GitPeriodStats;
 
 export interface ParsedGitLog {
   commits: number;
@@ -13,6 +15,9 @@ export interface ParsedGitLog {
   contributorsCount: number;
   topContributorShare: number;
   contributors: Contributor[];
+  daily: GitPeriodStats[];
+  weekly: GitPeriodStats[];
+  monthly: GitPeriodStats[];
 }
 
 interface AnalyzeGitOptions {
@@ -35,13 +40,51 @@ function emptyGit(reason: string | null = null): GitReport {
     deletions: 0,
     topContributorShare: 0,
     contributors: [],
+    daily: [],
+    weekly: [],
+    monthly: [],
   };
+}
+
+function isoWeek(date: string): string {
+  const [yearText = '', monthText = '', dayText = ''] = date.split('-');
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const value = new Date(Date.UTC(year, month - 1, day));
+  const weekday = value.getUTCDay() || 7;
+  value.setUTCDate(value.getUTCDate() + 4 - weekday);
+
+  const weekYear = value.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(weekYear, 0, 1));
+  const week = Math.ceil(((value.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  return `${weekYear}-W${String(week).padStart(2, '0')}`;
+}
+
+function periodStats(
+  periods: Map<string, MutableGitPeriodStats>,
+  period: string,
+): MutableGitPeriodStats {
+  const existing = periods.get(period);
+  if (existing) return existing;
+
+  const created: MutableGitPeriodStats = { period, commits: 0, additions: 0, deletions: 0 };
+  periods.set(period, created);
+  return created;
+}
+
+function sortedPeriods(periods: Map<string, MutableGitPeriodStats>): GitPeriodStats[] {
+  return [...periods.values()].sort((a, b) => a.period.localeCompare(b.period));
 }
 
 export function parseGitLog(text: string): ParsedGitLog {
   const contributorMap = new Map<string, MutableContributor>();
   const activeDays = new Set<string>();
+  const daily = new Map<string, MutableGitPeriodStats>();
+  const weekly = new Map<string, MutableGitPeriodStats>();
+  const monthly = new Map<string, MutableGitPeriodStats>();
   let current: MutableContributor | null = null;
+  let currentPeriods: MutableGitPeriodStats[] = [];
   let commits = 0;
   let additions = 0;
   let deletions = 0;
@@ -72,6 +115,14 @@ export function parseGitLog(text: string): ParsedGitLog {
       }
       contributorMap.set(key, contributor);
       current = contributor;
+      currentPeriods = date
+        ? [
+            periodStats(daily, date),
+            periodStats(weekly, isoWeek(date)),
+            periodStats(monthly, date.slice(0, 7)),
+          ]
+        : [];
+      for (const period of currentPeriods) period.commits += 1;
       commits += 1;
       continue;
     }
@@ -88,6 +139,10 @@ export function parseGitLog(text: string): ParsedGitLog {
     current.deletions += deleted;
     additions += added;
     deletions += deleted;
+    for (const period of currentPeriods) {
+      period.additions += added;
+      period.deletions += deleted;
+    }
   }
 
   const contributors = [...contributorMap.values()]
@@ -106,6 +161,9 @@ export function parseGitLog(text: string): ParsedGitLog {
     contributorsCount: contributors.length,
     topContributorShare,
     contributors,
+    daily: sortedPeriods(daily),
+    weekly: sortedPeriods(weekly),
+    monthly: sortedPeriods(monthly),
   };
 }
 
