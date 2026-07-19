@@ -1,6 +1,6 @@
 {
   "name": "@streetraceing/farsight",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Analyze dependency freshness, source lines, project type, and Git activity.",
   "type": "module",
   "bin": {
