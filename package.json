@@ -1,0 +1,44 @@
+{
+  "name": "farsight",
+  "version": "0.2.0",
+  "description": "Analyze dependency freshness, source lines, project type, and Git activity.",
+  "type": "module",
+  "bin": {
+    "farsight": "./dist/bin/farsight.js"
+  },
+  "files": [
+    "dist/bin",
+    "dist/src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "build": "npm run clean && tsc -p tsconfig.build.json && node -e \"require('node:fs').chmodSync('dist/bin/farsight.js', 0o755)\"",
+    "dev": "tsx ./bin/farsight.ts",
+    "start": "node ./dist/bin/farsight.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm run check && npm run pack:check",
+    "prepare": "npm run build"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "cli",
+    "analytics",
+    "dependencies",
+    "git",
+    "loc",
+    "typescript"
+  ],
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  },
+  "license": "MIT"
+}
