@@ -66,9 +66,13 @@ export async function analyzeDependencies(
   if (!network) return { ...base, warning: 'network check disabled' };
 
   try {
+    const npmCommand = process.platform === 'win32' ? 'cmd.exe' : 'npm';
+    const npmArgs = process.platform === 'win32'
+      ? ['/d', '/s', '/c', 'npm.cmd outdated --json --long --depth=0']
+      : ['outdated', '--json', '--long', '--depth=0'];
     const result = await run(
-      process.platform === 'win32' ? 'npm.cmd' : 'npm',
-      ['outdated', '--json', '--long', '--depth=0'],
+      npmCommand,
+      npmArgs,
       {
         cwd: root,
         allowExitCodes: [0, 1],
