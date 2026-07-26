@@ -35,19 +35,28 @@ export async function detectProjectType(
   const packageManager = await (async (): Promise<string | null> => {
     if (await exists(root, 'pnpm-lock.yaml')) return 'pnpm';
     if (await exists(root, 'yarn.lock')) return 'yarn';
-    if (await exists(root, 'bun.lockb') || await exists(root, 'bun.lock')) return 'bun';
-    if (await exists(root, 'package-lock.json') || await exists(root, 'npm-shrinkwrap.json')) return 'npm';
+    if ((await exists(root, 'bun.lockb')) || (await exists(root, 'bun.lock')))
+      return 'bun';
+    if (
+      (await exists(root, 'package-lock.json')) ||
+      (await exists(root, 'npm-shrinkwrap.json'))
+    )
+      return 'npm';
     return pkg ? 'unknown' : null;
   })();
 
-  const isMonorepo = Boolean(pkg?.workspaces)
-    || await exists(root, 'pnpm-workspace.yaml')
-    || hasAny(deps, ['turbo', 'nx', 'lerna']);
+  const isMonorepo =
+    Boolean(pkg?.workspaces) ||
+    (await exists(root, 'pnpm-workspace.yaml')) ||
+    hasAny(deps, ['turbo', 'nx', 'lerna']);
   if (isMonorepo) traits.push('monorepo');
 
-  const hasTypeScript = deps.has('typescript')
-    || await exists(root, 'tsconfig.json')
-    || Object.keys(loc.byExtension).some((extension) => ['.ts', '.tsx', '.mts', '.cts'].includes(extension));
+  const hasTypeScript =
+    deps.has('typescript') ||
+    (await exists(root, 'tsconfig.json')) ||
+    Object.keys(loc.byExtension).some((extension) =>
+      ['.ts', '.tsx', '.mts', '.cts'].includes(extension),
+    );
   if (hasTypeScript) traits.push('TypeScript');
 
   let primary = 'Unknown project';
@@ -61,8 +70,12 @@ export async function detectProjectType(
   else if (deps.has('react-native')) primary = 'React Native application';
   else if (deps.has('electron')) primary = 'Electron desktop application';
   else if (deps.has('@nestjs/core')) primary = 'NestJS backend';
-  else if (hasAny(deps, ['express', 'fastify', 'koa', 'hapi', '@hapi/hapi', 'hono'])) primary = 'Node.js backend';
-  else if (deps.has('react') && deps.has('vite')) primary = 'React + Vite frontend';
+  else if (
+    hasAny(deps, ['express', 'fastify', 'koa', 'hapi', '@hapi/hapi', 'hono'])
+  )
+    primary = 'Node.js backend';
+  else if (deps.has('react') && deps.has('vite'))
+    primary = 'React + Vite frontend';
   else if (deps.has('vue') && deps.has('vite')) primary = 'Vue + Vite frontend';
   else if (deps.has('svelte')) primary = 'Svelte frontend';
   else if (deps.has('react')) primary = 'React frontend/library';
@@ -72,14 +85,24 @@ export async function detectProjectType(
   else if (pkg) primary = 'Node.js package/application';
   else if (loc.files > 0) primary = 'Source-code project';
 
-  if (hasAny(deps, ['vitest', 'jest', 'mocha', 'ava'])) traits.push('unit tests');
-  if (hasAny(deps, ['playwright', '@playwright/test', 'cypress'])) traits.push('end-to-end tests');
-  if (deps.has('storybook') || deps.has('@storybook/react') || deps.has('@storybook/vue3')) traits.push('Storybook');
+  if (hasAny(deps, ['vitest', 'jest', 'mocha', 'ava']))
+    traits.push('unit tests');
+  if (hasAny(deps, ['playwright', '@playwright/test', 'cypress']))
+    traits.push('end-to-end tests');
+  if (
+    deps.has('storybook') ||
+    deps.has('@storybook/react') ||
+    deps.has('@storybook/vue3')
+  )
+    traits.push('Storybook');
   if (pkg?.private) traits.push('private package');
 
   const languages = Object.entries(loc.byExtension)
     .slice(0, 5)
-    .map(([extension, stats]) => ({ extension, nonEmptyLines: stats.nonEmpty }));
+    .map(([extension, stats]) => ({
+      extension,
+      nonEmptyLines: stats.nonEmpty,
+    }));
 
   return {
     primary: isMonorepo ? `Monorepo: ${primary}` : primary,

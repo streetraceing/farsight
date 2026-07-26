@@ -3,23 +3,67 @@ import path from 'node:path';
 import type { ExtensionStats, LocReport } from './types.js';
 
 export const SOURCE_EXTENSIONS: ReadonlySet<string> = new Set([
-  '.js', '.jsx', '.mjs', '.cjs',
-  '.ts', '.tsx', '.mts', '.cts',
-  '.vue', '.svelte', '.astro',
-  '.py', '.rb', '.php', '.go', '.rs', '.java', '.kt', '.kts',
-  '.c', '.h', '.cc', '.cpp', '.hpp', '.cs', '.swift',
-  '.css', '.scss', '.sass', '.less',
-  '.html', '.htm', '.sql', '.graphql', '.gql',
-  '.sh', '.bash', '.zsh', '.fish', '.ps1',
+  '.js',
+  '.jsx',
+  '.mjs',
+  '.cjs',
+  '.ts',
+  '.tsx',
+  '.mts',
+  '.cts',
+  '.vue',
+  '.svelte',
+  '.astro',
+  '.py',
+  '.rb',
+  '.php',
+  '.go',
+  '.rs',
+  '.java',
+  '.kt',
+  '.kts',
+  '.c',
+  '.h',
+  '.cc',
+  '.cpp',
+  '.hpp',
+  '.cs',
+  '.swift',
+  '.css',
+  '.scss',
+  '.sass',
+  '.less',
+  '.html',
+  '.htm',
+  '.sql',
+  '.graphql',
+  '.gql',
+  '.sh',
+  '.bash',
+  '.zsh',
+  '.fish',
+  '.ps1',
 ]);
 
 export const IGNORED_DIRECTORIES: ReadonlySet<string> = new Set([
-  '.git', '.hg', '.svn',
-  'node_modules', 'vendor',
-  'dist', 'build', 'out', 'coverage',
-  '.next', '.nuxt', '.svelte-kit', '.astro',
-  '.turbo', '.cache', '.parcel-cache',
-  'target', 'obj',
+  '.git',
+  '.hg',
+  '.svn',
+  'node_modules',
+  'vendor',
+  'dist',
+  'build',
+  'out',
+  'coverage',
+  '.next',
+  '.nuxt',
+  '.svelte-kit',
+  '.astro',
+  '.turbo',
+  '.cache',
+  '.parcel-cache',
+  'target',
+  'obj',
 ]);
 
 export interface CountTextResult {
@@ -66,7 +110,11 @@ export async function analyzeLoc(
     try {
       entries = await readdir(directory, { withFileTypes: true });
     } catch (error: unknown) {
-      if (isNodeError(error) && (error.code === 'EACCES' || error.code === 'EPERM')) return;
+      if (
+        isNodeError(error) &&
+        (error.code === 'EACCES' || error.code === 'EPERM')
+      )
+        return;
       throw error;
     }
 
@@ -109,7 +157,9 @@ export async function analyzeLoc(
 
   await visit(root);
   totals.byExtension = Object.fromEntries(
-    Object.entries(totals.byExtension).sort((a, b) => b[1].nonEmpty - a[1].nonEmpty),
+    Object.entries(totals.byExtension).sort(
+      (a, b) => b[1].nonEmpty - a[1].nonEmpty,
+    ),
   );
   return totals;
 }

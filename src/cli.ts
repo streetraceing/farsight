@@ -11,9 +11,14 @@ import type { CliOptions, FarsightReport } from './types.js';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
-function requireValue(argv: readonly string[], index: number, option: string): string {
+function requireValue(
+  argv: readonly string[],
+  index: number,
+  option: string,
+): string {
   const value = argv[index];
-  if (!value || value.startsWith('--')) throw new Error(`${option} requires a value`);
+  if (!value || value.startsWith('--'))
+    throw new Error(`${option} requires a value`);
   return value;
 }
 
@@ -35,18 +40,28 @@ export function parseArgs(argv: readonly string[]): CliOptions {
     if (argument === '--json') options.json = true;
     else if (argument === '--no-network') options.network = false;
     else if (argument === '--help' || argument === '-h') options.help = true;
-    else if (argument === '--version' || argument === '-v') options.version = true;
-    else if (argument === '--cwd') options.cwd = requireValue(argv, ++index, '--cwd');
+    else if (argument === '--version' || argument === '-v')
+      options.version = true;
+    else if (argument === '--cwd')
+      options.cwd = requireValue(argv, ++index, '--cwd');
     else if (argument.startsWith('--cwd=')) options.cwd = argument.slice(6);
-    else if (argument === '--since') options.sinceDays = Number(requireValue(argv, ++index, '--since'));
-    else if (argument.startsWith('--since=')) options.sinceDays = Number(argument.slice(8));
-    else if (argument === '--top') options.top = Number(requireValue(argv, ++index, '--top'));
-    else if (argument.startsWith('--top=')) options.top = Number(argument.slice(6));
+    else if (argument === '--since')
+      options.sinceDays = Number(requireValue(argv, ++index, '--since'));
+    else if (argument.startsWith('--since='))
+      options.sinceDays = Number(argument.slice(8));
+    else if (argument === '--top')
+      options.top = Number(requireValue(argv, ++index, '--top'));
+    else if (argument.startsWith('--top='))
+      options.top = Number(argument.slice(6));
     else throw new Error(`Unknown option: ${argument}`);
   }
 
   if (!options.cwd) throw new Error('--cwd requires a path');
-  if (!Number.isInteger(options.sinceDays) || options.sinceDays < 1 || options.sinceDays > 3650) {
+  if (
+    !Number.isInteger(options.sinceDays) ||
+    options.sinceDays < 1 ||
+    options.sinceDays > 3650
+  ) {
     throw new Error('--since must be an integer between 1 and 3650');
   }
   if (!Number.isInteger(options.top) || options.top < 1 || options.top > 100) {
@@ -71,11 +86,17 @@ async function readOwnVersion(): Promise<string> {
     try {
       const raw = await readFile(packagePath, 'utf8');
       const parsed: unknown = JSON.parse(raw);
-      if (typeof parsed !== 'object' || parsed === null || !('version' in parsed)) continue;
+      if (
+        typeof parsed !== 'object' ||
+        parsed === null ||
+        !('version' in parsed)
+      )
+        continue;
       const version = (parsed as { version?: unknown }).version;
       if (typeof version === 'string') return version;
     } catch (error: unknown) {
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue;
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+        continue;
       throw error;
     }
   }
@@ -83,7 +104,9 @@ async function readOwnVersion(): Promise<string> {
   throw new Error('Unable to read Farsight version');
 }
 
-export async function analyzeProject(options: CliOptions): Promise<FarsightReport> {
+export async function analyzeProject(
+  options: CliOptions,
+): Promise<FarsightReport> {
   const root = options.cwd;
   const pkg = await readPackageInfo(root);
   const [loc, dependencies, git] = await Promise.all([
@@ -111,7 +134,9 @@ export async function analyzeProject(options: CliOptions): Promise<FarsightRepor
   };
 }
 
-export async function main(argv: readonly string[] = process.argv.slice(2)): Promise<void> {
+export async function main(
+  argv: readonly string[] = process.argv.slice(2),
+): Promise<void> {
   const options = parseArgs(argv);
   if (options.help) {
     console.log(helpText());
@@ -123,5 +148,7 @@ export async function main(argv: readonly string[] = process.argv.slice(2)): Pro
   }
 
   const report = await analyzeProject(options);
-  console.log(options.json ? JSON.stringify(report, null, 2) : renderReport(report));
+  console.log(
+    options.json ? JSON.stringify(report, null, 2) : renderReport(report),
+  );
 }

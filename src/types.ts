@@ -1,8 +1,5 @@
 export type DependencyKind =
-  | 'dependency'
-  | 'devDependency'
-  | 'peerDependency'
-  | 'optionalDependency';
+  'dependency' | 'devDependency' | 'peerDependency' | 'optionalDependency';
 
 export interface PackageJson {
   name?: string;

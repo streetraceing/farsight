@@ -57,7 +57,9 @@ function isoWeek(date: string): string {
 
   const weekYear = value.getUTCFullYear();
   const yearStart = new Date(Date.UTC(weekYear, 0, 1));
-  const week = Math.ceil(((value.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  const week = Math.ceil(
+    ((value.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
+  );
   return `${weekYear}-W${String(week).padStart(2, '0')}`;
 }
 
@@ -68,12 +70,19 @@ function periodStats(
   const existing = periods.get(period);
   if (existing) return existing;
 
-  const created: MutableGitPeriodStats = { period, commits: 0, additions: 0, deletions: 0 };
+  const created: MutableGitPeriodStats = {
+    period,
+    commits: 0,
+    additions: 0,
+    deletions: 0,
+  };
   periods.set(period, created);
   return created;
 }
 
-function sortedPeriods(periods: Map<string, MutableGitPeriodStats>): GitPeriodStats[] {
+function sortedPeriods(
+  periods: Map<string, MutableGitPeriodStats>,
+): GitPeriodStats[] {
   return [...periods.values()].sort((a, b) => a.period.localeCompare(b.period));
 }
 
@@ -94,7 +103,9 @@ export function parseGitLog(text: string): ParsedGitLog {
     if (!line) continue;
 
     if (line.startsWith('@@@')) {
-      const [hash = '', name = '', email = '', date = ''] = line.slice(3).split('\x1f');
+      const [hash = '', name = '', email = '', date = ''] = line
+        .slice(3)
+        .split('\x1f');
       const key = (email || name || hash).toLowerCase();
       const contributor: MutableContributor = contributorMap.get(key) ?? {
         name: name || 'Unknown',
@@ -110,8 +121,10 @@ export function parseGitLog(text: string): ParsedGitLog {
       if (date) {
         contributor.activeDays.add(date);
         activeDays.add(date);
-        if (!contributor.firstCommitAt || date < contributor.firstCommitAt) contributor.firstCommitAt = date;
-        if (!contributor.lastCommitAt || date > contributor.lastCommitAt) contributor.lastCommitAt = date;
+        if (!contributor.firstCommitAt || date < contributor.firstCommitAt)
+          contributor.firstCommitAt = date;
+        if (!contributor.lastCommitAt || date > contributor.lastCommitAt)
+          contributor.lastCommitAt = date;
       }
       contributorMap.set(key, contributor);
       current = contributor;
@@ -131,7 +144,8 @@ export function parseGitLog(text: string): ParsedGitLog {
     if (!match || !current) continue;
     const addedText = match[1];
     const deletedText = match[2];
-    if (!addedText || !deletedText || addedText === '-' || deletedText === '-') continue;
+    if (!addedText || !deletedText || addedText === '-' || deletedText === '-')
+      continue;
 
     const added = Number(addedText);
     const deleted = Number(deletedText);
@@ -147,11 +161,15 @@ export function parseGitLog(text: string): ParsedGitLog {
 
   const contributors = [...contributorMap.values()]
     .map((item): Contributor => ({ ...item, activeDays: item.activeDays.size }))
-    .sort((a, b) => b.commits - a.commits || b.activeDays - a.activeDays || a.name.localeCompare(b.name));
+    .sort(
+      (a, b) =>
+        b.commits - a.commits ||
+        b.activeDays - a.activeDays ||
+        a.name.localeCompare(b.name),
+    );
 
-  const topContributorShare = commits > 0 && contributors[0]
-    ? contributors[0].commits / commits
-    : 0;
+  const topContributorShare =
+    commits > 0 && contributors[0] ? contributors[0].commits / commits : 0;
 
   return {
     commits,
@@ -191,15 +209,19 @@ export async function analyzeGit(
     safeGit(root, ['branch', '--show-current']),
     safeGit(root, ['config', '--get', 'remote.origin.url'], [0, 1]),
     safeGit(root, ['log', '-1', '--format=%cI'], [0, 128]),
-    safeGit(root, [
-      'log',
-      `--since=${sinceDays}.days`,
-      '--no-merges',
-      '--date=short',
-      '--pretty=format:@@@%H%x1f%aN%x1f%aE%x1f%ad',
-      '--numstat',
-      '--no-renames',
-    ], [0, 128]),
+    safeGit(
+      root,
+      [
+        'log',
+        `--since=${sinceDays}.days`,
+        '--no-merges',
+        '--date=short',
+        '--pretty=format:@@@%H%x1f%aN%x1f%aE%x1f%ad',
+        '--numstat',
+        '--no-renames',
+      ],
+      [0, 128],
+    ),
   ]);
 
   const parsed = parseGitLog(log ?? '');

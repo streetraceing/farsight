@@ -14,7 +14,10 @@ test('analyzeLoc ignores node_modules and counts source files', async () => {
   try {
     await mkdir(path.join(root, 'src'));
     await mkdir(path.join(root, 'node_modules'));
-    await writeFile(path.join(root, 'src', 'index.ts'), 'const a = 1;\n\nexport { a };\n');
+    await writeFile(
+      path.join(root, 'src', 'index.ts'),
+      'const a = 1;\n\nexport { a };\n',
+    );
     await writeFile(path.join(root, 'src', 'style.css'), 'body {}\n');
     await writeFile(path.join(root, 'node_modules', 'ignored.ts'), 'x\ny\nz\n');
     const report = await analyzeLoc(root);

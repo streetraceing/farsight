@@ -41,9 +41,12 @@ export function classifyDependency(
   item: Pick<DependencyItem, 'current' | 'wanted' | 'latest'>,
 ): DependencyStatus {
   if (!item.latest) return 'unknown';
-  if (item.current && item.wanted && item.current !== item.wanted) return 'update-within-range';
-  if (item.wanted && item.latest && item.wanted !== item.latest) return 'newer-outside-range';
-  if (item.current && item.latest && item.current !== item.latest) return 'outdated';
+  if (item.current && item.wanted && item.current !== item.wanted)
+    return 'update-within-range';
+  if (item.wanted && item.latest && item.wanted !== item.latest)
+    return 'newer-outside-range';
+  if (item.current && item.latest && item.current !== item.latest)
+    return 'outdated';
   return 'latest';
 }
 
@@ -67,23 +70,20 @@ export async function analyzeDependencies(
 
   try {
     const npmCommand = process.platform === 'win32' ? 'cmd.exe' : 'npm';
-    const npmArgs = process.platform === 'win32'
-      ? ['/d', '/s', '/c', 'npm.cmd outdated --json --long --depth=0']
-      : ['outdated', '--json', '--long', '--depth=0'];
-    const result = await run(
-      npmCommand,
-      npmArgs,
-      {
-        cwd: root,
-        allowExitCodes: [0, 1],
-        env: {
-          ...process.env,
-          NO_COLOR: '1',
-          npm_config_color: 'false',
-          npm_config_progress: 'false',
-        },
+    const npmArgs =
+      process.platform === 'win32'
+        ? ['/d', '/s', '/c', 'npm.cmd outdated --json --long --depth=0']
+        : ['outdated', '--json', '--long', '--depth=0'];
+    const result = await run(npmCommand, npmArgs, {
+      cwd: root,
+      allowExitCodes: [0, 1],
+      env: {
+        ...process.env,
+        NO_COLOR: '1',
+        npm_config_color: 'false',
+        npm_config_progress: 'false',
       },
-    );
+    });
 
     const text = result.stdout.trim();
     const parsed: unknown = text ? JSON.parse(text) : {};

@@ -7,24 +7,37 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isStringRecord(value: unknown): value is Record<string, string> {
-  return isRecord(value) && Object.values(value).every((item) => typeof item === 'string');
+  return (
+    isRecord(value) &&
+    Object.values(value).every((item) => typeof item === 'string')
+  );
 }
 
 function parsePackageJson(raw: string): PackageJson {
   const parsed: unknown = JSON.parse(raw);
-  if (!isRecord(parsed)) throw new Error('package.json must contain a JSON object');
+  if (!isRecord(parsed))
+    throw new Error('package.json must contain a JSON object');
 
-  for (const key of ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']) {
+  for (const key of [
+    'dependencies',
+    'devDependencies',
+    'peerDependencies',
+    'optionalDependencies',
+  ]) {
     const value = parsed[key];
     if (value !== undefined && !isStringRecord(value)) {
-      throw new Error(`package.json field "${key}" must be an object of string versions`);
+      throw new Error(
+        `package.json field "${key}" must be an object of string versions`,
+      );
     }
   }
 
   return parsed as PackageJson;
 }
 
-export async function readPackageInfo(root: string): Promise<PackageJson | null> {
+export async function readPackageInfo(
+  root: string,
+): Promise<PackageJson | null> {
   try {
     const raw = await readFile(path.join(root, 'package.json'), 'utf8');
     return parsePackageJson(raw);
@@ -37,7 +50,9 @@ export async function readPackageInfo(root: string): Promise<PackageJson | null>
   }
 }
 
-export function directDependencies(pkg: PackageJson | null): DirectDependency[] {
+export function directDependencies(
+  pkg: PackageJson | null,
+): DirectDependency[] {
   if (!pkg) return [];
 
   const groups: Array<[DependencyKind, Record<string, string> | undefined]> = [

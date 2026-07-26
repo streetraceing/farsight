@@ -3,7 +3,14 @@ import test from 'node:test';
 import { parseArgs } from '../src/cli.js';
 
 test('parseArgs reads common flags', () => {
-  const parsed = parseArgs(['--cwd=.', '--since=30', '--top', '5', '--json', '--no-network']);
+  const parsed = parseArgs([
+    '--cwd=.',
+    '--since=30',
+    '--top',
+    '5',
+    '--json',
+    '--no-network',
+  ]);
   assert.equal(parsed.sinceDays, 30);
   assert.equal(parsed.top, 5);
   assert.equal(parsed.json, true);
