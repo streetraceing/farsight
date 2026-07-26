@@ -1,83 +1,267 @@
-# @streetraceing/farsight
+# Farsight
 
-Farsight is a TypeScript command-line tool that gives a quick overview of a project:
+[![npm version](https://img.shields.io/npm/v/@streetraceing/farsight?logo=npm&label=npm)](https://www.npmjs.com/package/@streetraceing/farsight)
+[![Node.js 18+](https://img.shields.io/badge/node-%3E%3D18-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 
-- freshness of direct npm dependencies (`current`, `wanted`, and `latest`);
-- physical and non-empty source lines;
-- heuristic project-type detection;
-- local Git activity, contributor statistics, and daily, weekly, and monthly code-change totals.
+**Fast project intelligence from your terminal.**
 
-Requires Node.js 18 or later.
+Farsight analyzes a local project and produces a clear report about its structure, dependencies, source code, and Git activity. Use it before a handoff, a technical review, a dependency update, or whenever you need a quick picture of an unfamiliar codebase.
 
-## Install and use
+## Contents
 
-Run it without a global install:
+- [Quick start](#quick-start)
+- [Documentation](#documentation)
+- [What Farsight analyzes](#what-farsight-analyzes)
+- [Command reference](#command-reference)
+- [Examples](#examples)
+- [Understanding the report](#understanding-the-report)
+- [JSON output](#json-output)
+- [Privacy and network access](#privacy-and-network-access)
+- [Development](#development)
+- [Limitations](#limitations)
+- [License](#license)
+
+## Quick start
+
+Farsight requires Node.js 18 or later.
+
+### Run with npx
+
+Analyze the current directory without a global installation:
+
+```bash
+npx @streetraceing/farsight
+```
+
+Analyze another project:
 
 ```bash
 npx @streetraceing/farsight --cwd /path/to/project
 ```
 
-Or install globally:
+### Install globally
+
+Install Farsight once to make the `farsight` command available in every terminal:
 
 ```bash
 npm install --global @streetraceing/farsight
+farsight --cwd /path/to/project
 ```
 
-Common options:
+Update a global installation with:
 
 ```bash
-npx @streetraceing/farsight --cwd /path/to/project --json
-npx @streetraceing/farsight --cwd /path/to/project --since=30 --top=5
-npx @streetraceing/farsight --cwd /path/to/project --no-network
+npm update --global @streetraceing/farsight
 ```
 
-Run `npx @streetraceing/farsight --help` to see every option.
+## Documentation
+
+The complete documentation is available in [`docs/`](./docs/README.md):
+
+| Guide                                             | Description                                                        |
+| ------------------------------------------------- | ------------------------------------------------------------------ |
+| [Getting started](./docs/getting-started.md)      | Install Farsight with `npx` or globally, then run a first analysis |
+| [CLI reference](./docs/cli-reference.md)          | Every option, default, and validation rule                         |
+| [Report guide](./docs/report-guide.md)            | How to interpret project, dependency, code, Git, and JSON data     |
+| [Development and releases](./docs/development.md) | Local development, validation, package testing, and npm publishing |
+
+## What Farsight analyzes
+
+| Area         | What you get                                                                                       |
+| ------------ | -------------------------------------------------------------------------------------------------- |
+| Project      | Detected project type, package manager, architecture traits, and primary source languages          |
+| Dependencies | Direct dependency count and available updates from `npm outdated`                                  |
+| Code         | Source-file count, physical and non-empty lines, plus a language breakdown                         |
+| Git          | Branch, remote, activity, contributors, additions/deletions, and daily, weekly, and monthly trends |
+
+Farsight recognizes common Node.js, frontend, backend, mobile, and desktop project types, including Next.js, Vite, React, Vue, Angular, Astro, NestJS, Electron, and more.
+
+## Command reference
+
+```text
+npx @streetraceing/farsight [options]
+# or, after a global installation:
+farsight [options]
+```
+
+| Option            | Description                               | Default           |
+| ----------------- | ----------------------------------------- | ----------------- |
+| `--cwd <path>`    | Analyze a project in another directory    | Current directory |
+| `--since <days>`  | Git activity window                       | `90`              |
+| `--top <count>`   | Maximum number of contributors to display | `10`              |
+| `--json`          | Print a machine-readable JSON report      | `false`           |
+| `--no-network`    | Skip the npm registry dependency check    | `false`           |
+| `-v`, `--version` | Print the installed Farsight version      | —                 |
+| `-h`, `--help`    | Print the command help                    | —                 |
+
+## Examples
+
+### Review the project in the current directory
+
+```bash
+npx @streetraceing/farsight
+```
+
+After a global installation, the same command is:
+
+```bash
+farsight
+```
+
+### Analyze a project from another folder
+
+```bash
+npx @streetraceing/farsight --cwd ../my-app
+```
+
+### Inspect a full year of Git activity
+
+```bash
+npx @streetraceing/farsight --since=365 --top=20
+```
+
+### Work without an npm registry check
+
+```bash
+npx @streetraceing/farsight --no-network
+```
+
+### Save the complete report for tooling or CI
+
+```bash
+npx @streetraceing/farsight --json > farsight-report.json
+```
+
+## Understanding the report
+
+### Project
+
+Farsight combines `package.json`, lockfiles, configuration files, installed dependency names, and source extensions to estimate the primary project type. The result is a useful heuristic, not a replacement for project documentation.
+
+### Dependencies
+
+Farsight reports direct runtime, development, peer, and optional dependencies. When network checks are enabled, it runs `npm outdated --depth=0` and compares the installed, wanted, and latest versions.
+
+### Code
+
+Code metrics include physical and non-empty lines across supported source extensions. Generated and dependency directories such as `node_modules`, `dist`, `build`, coverage output, and framework caches are excluded. Files larger than 2 MiB and binary files are skipped.
+
+### Git activity
+
+Git statistics are calculated from local, non-merge commits in the selected `--since` window. The report includes:
+
+- total commits, active days, contributors, additions, and deletions;
+- the top contributors by commit count;
+- recent active days, weeks, and months, each with commits and line changes.
+
+The console report shows a practical recent subset: 14 active days, 12 active weeks, and 12 active months. Use JSON output when you need every active period in the selected window.
+
+## JSON output
+
+Use `--json` when consuming Farsight from scripts, CI, dashboards, or another tool:
+
+```bash
+npx @streetraceing/farsight --since=365 --json
+```
+
+The report has a versioned schema and includes full time-series data:
+
+```json
+{
+  "schemaVersion": 1,
+  "project": {
+    "primary": "React + Vite frontend",
+    "packageManager": "npm"
+  },
+  "git": {
+    "commits": 42,
+    "additions": 2140,
+    "deletions": 608,
+    "daily": [
+      {
+        "period": "2026-07-20",
+        "commits": 3,
+        "additions": 128,
+        "deletions": 22
+      }
+    ],
+    "weekly": [
+      {
+        "period": "2026-W30",
+        "commits": 12,
+        "additions": 640,
+        "deletions": 105
+      }
+    ],
+    "monthly": [
+      {
+        "period": "2026-07",
+        "commits": 28,
+        "additions": 1480,
+        "deletions": 312
+      }
+    ]
+  }
+}
+```
+
+## Privacy and network access
+
+Farsight reads source files and Git history from the directory you select. It does not send project content, Git history, or report data to an external service.
+
+The only optional network operation is the installed `npm outdated` command used for dependency freshness. Pass `--no-network` to skip it. The npm client may still need network access when it first downloads or updates Farsight.
 
 ## Development
 
-Install dependencies and run the TypeScript source directly:
+Install the project dependencies and run the TypeScript source directly:
 
 ```bash
 npm install
 npm run dev -- --cwd /path/to/project
 ```
 
-Validate the project, run tests, and build the production CLI:
+Run the complete validation suite:
 
 ```bash
 npm run check
 ```
 
-Useful individual commands:
+Useful maintenance commands:
 
 ```bash
 npm run typecheck
 npm test
 npm run build
-npm start -- --cwd /path/to/project
+npm run pack:check
 ```
 
-TypeScript is compiled into `dist/`. The `bin` entry in `package.json` points to `dist/bin/farsight.js`, so package users only need Node.js, not TypeScript.
-
-## Test the npm package locally
-
-To test the exact package contents, create a tarball and run it in another project:
+To test the exact package archive locally:
 
 ```bash
 npm pack
 npx --yes --package=/absolute/path/to/streetraceing-farsight-<version>.tgz farsight --no-network
 ```
 
-Inspect the files that would be published without creating the tarball:
+### Publishing
+
+After validating the package and authenticating with npm, create a version and publish the public scoped package:
 
 ```bash
-npm run pack:check
+npm run npm:patch
+npm run npm:publish
 ```
 
-Only the compiled CLI, README, license, and package metadata are included. Tests and `node_modules` are excluded.
+The publish hook runs type checks, tests, the production build, and a package-content check before release.
 
-## MVP limitations
+## Limitations
 
-- LOC means physical and non-empty lines, not AST-based SLOC.
-- Dependency analysis runs the locally installed `npm outdated`, so it uses the current `.npmrc`, registry, and authentication settings.
-- Git metrics come from local history for the selected period. Commit and churn counts are not an objective measure of productivity.
+- Project-type detection is heuristic and may not identify every technology or architecture.
+- Line counts measure physical and non-empty lines, not AST-based SLOC.
+- Dependency freshness depends on your local npm configuration, registry access, and authorization.
+- Git line statistics come from `git log --numstat`; binary-file changes do not have line counts.
+- Commit and churn metrics describe repository activity, not individual productivity.
+
+## License
+
+[MIT](./LICENSE) © Farsight contributors.
