@@ -1,6 +1,6 @@
 {
   "name": "@streetraceing/farsight",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "Analyze dependency freshness, source lines, project type, and Git activity.",
   "type": "module",
   "lint-staged": {
