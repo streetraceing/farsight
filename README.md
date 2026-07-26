@@ -1,4 +1,4 @@
-# Farsight
+# @streetraceing/farsight
 
 Farsight is a TypeScript command-line tool that gives a quick overview of a project:
 
@@ -11,10 +11,16 @@ Requires Node.js 18 or later.
 
 ## Install and use
 
-Once the package has been published, run it without a global install:
+Run it without a global install:
 
 ```bash
 npx @streetraceing/farsight --cwd /path/to/project
+```
+
+Or install globally:
+
+```bash
+npm install --global @streetraceing/farsight
 ```
 
 Common options:
