@@ -75,6 +75,8 @@ export interface Contributor {
 
 export interface GitPeriodStats {
   period: string;
+  startDate: string;
+  endDate: string;
   commits: number;
   additions: number;
   deletions: number;
@@ -131,6 +133,7 @@ export interface CliOptions {
   sinceDays: number;
   top: number;
   json: boolean;
+  interactive: boolean;
   network: boolean;
   help: boolean;
   version: boolean;

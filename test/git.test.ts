@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseGitLog } from '../src/git.js';
 
-test('parseGitLog aggregates contributors and numstat', () => {
+test('parseGitLog aggregates contributors, ranges, and numstat', () => {
   const sample = [
     '@@@a1\x1fAlice\x1falice@example.com\x1f2026-07-01',
     '10\t2\tsrc/a.ts',
@@ -21,12 +21,41 @@ test('parseGitLog aggregates contributors and numstat', () => {
   assert.equal(report.contributors[0]?.name, 'Alice');
   assert.equal(report.contributors[0]?.commits, 2);
   assert.deepEqual(report.daily, [
-    { period: '2026-07-01', commits: 1, additions: 10, deletions: 2 },
-    { period: '2026-07-02', commits: 2, additions: 8, deletions: 5 },
+    {
+      period: '2026-07-01',
+      startDate: '2026-07-01',
+      endDate: '2026-07-01',
+      commits: 1,
+      additions: 10,
+      deletions: 2,
+    },
+    {
+      period: '2026-07-02',
+      startDate: '2026-07-02',
+      endDate: '2026-07-02',
+      commits: 2,
+      additions: 8,
+      deletions: 5,
+    },
   ]);
-  assert.equal(report.weekly.length, 1);
-  assert.equal(report.weekly[0]?.commits, 3);
+  assert.deepEqual(report.weekly, [
+    {
+      period: '2026-W27',
+      startDate: '2026-06-29',
+      endDate: '2026-07-05',
+      commits: 3,
+      additions: 18,
+      deletions: 7,
+    },
+  ]);
   assert.deepEqual(report.monthly, [
-    { period: '2026-07', commits: 3, additions: 18, deletions: 7 },
+    {
+      period: '2026-07',
+      startDate: '2026-07-01',
+      endDate: '2026-07-31',
+      commits: 3,
+      additions: 18,
+      deletions: 7,
+    },
   ]);
 });

@@ -68,12 +68,12 @@ The complete documentation is available in [`docs/`](./docs/README.md):
 
 ## What Farsight analyzes
 
-| Area         | What you get                                                                                       |
-| ------------ | -------------------------------------------------------------------------------------------------- |
-| Project      | Detected project type, package manager, architecture traits, and primary source languages          |
-| Dependencies | Direct dependency count and available updates from `npm outdated`                                  |
-| Code         | Source-file count, physical and non-empty lines, plus a language breakdown                         |
-| Git          | Branch, remote, activity, contributors, additions/deletions, and daily, weekly, and monthly trends |
+| Area         | What you get                                                                                        |
+| ------------ | --------------------------------------------------------------------------------------------------- |
+| Project      | Detected project type, package manager, architecture traits, and primary source languages           |
+| Dependencies | Direct dependency count and available updates from `npm outdated`                                   |
+| Code         | Source-file count, physical and non-empty lines, plus a language breakdown                          |
+| Git          | Branch, remote, contributors, line changes, and complete daily, weekly, and monthly activity tables |
 
 Farsight recognizes common Node.js, frontend, backend, mobile, and desktop project types, including Next.js, Vite, React, Vue, Angular, Astro, NestJS, Electron, and more.
 
@@ -85,15 +85,16 @@ npx @streetraceing/farsight [options]
 farsight [options]
 ```
 
-| Option            | Description                               | Default           |
-| ----------------- | ----------------------------------------- | ----------------- |
-| `--cwd <path>`    | Analyze a project in another directory    | Current directory |
-| `--since <days>`  | Git activity window                       | `90`              |
-| `--top <count>`   | Maximum number of contributors to display | `10`              |
-| `--json`          | Print a machine-readable JSON report      | `false`           |
-| `--no-network`    | Skip the npm registry dependency check    | `false`           |
-| `-v`, `--version` | Print the installed Farsight version      | —                 |
-| `-h`, `--help`    | Print the command help                    | —                 |
+| Option                | Description                                 | Default           |
+| --------------------- | ------------------------------------------- | ----------------- |
+| `--cwd <path>`        | Analyze a project in another directory      | Current directory |
+| `--since <days>`      | Git activity window                         | `90`              |
+| `--top <count>`       | Maximum number of contributors to display   | `10`              |
+| `-i`, `--interactive` | Open the keyboard-driven terminal interface | `false`           |
+| `--json`              | Print a machine-readable JSON report        | `false`           |
+| `--no-network`        | Skip the npm registry dependency check      | `false`           |
+| `-v`, `--version`     | Print the installed Farsight version        | —                 |
+| `-h`, `--help`        | Print the command help                      | —                 |
 
 ## Examples
 
@@ -120,6 +121,14 @@ npx @streetraceing/farsight --cwd ../my-app
 ```bash
 npx @streetraceing/farsight --since=365 --top=20
 ```
+
+### Explore the report interactively
+
+```bash
+npx @streetraceing/farsight --interactive
+```
+
+Use the left and right arrows or number keys to switch sections, the up and down arrows to scroll, `r` to refresh the analysis, and `q` or Escape to exit.
 
 ### Work without an npm registry check
 
@@ -153,9 +162,9 @@ Git statistics are calculated from local, non-merge commits in the selected `--s
 
 - total commits, active days, contributors, additions, and deletions;
 - the top contributors by commit count;
-- recent active days, weeks, and months, each with commits and line changes.
+- every active day, ISO week, and month in the selected window, each with commits and line changes.
 
-The console report shows a practical recent subset: 14 active days, 12 active weeks, and 12 active months. Use JSON output when you need every active period in the selected window.
+Weekly rows include the ISO week label plus its Monday start date and Sunday end date. Monthly rows also include their calendar boundaries. The newest period is shown first.
 
 ## JSON output
 
@@ -181,6 +190,8 @@ The report has a versioned schema and includes full time-series data:
     "daily": [
       {
         "period": "2026-07-20",
+        "startDate": "2026-07-20",
+        "endDate": "2026-07-20",
         "commits": 3,
         "additions": 128,
         "deletions": 22
@@ -189,6 +200,8 @@ The report has a versioned schema and includes full time-series data:
     "weekly": [
       {
         "period": "2026-W30",
+        "startDate": "2026-07-20",
+        "endDate": "2026-07-26",
         "commits": 12,
         "additions": 640,
         "deletions": 105
@@ -197,6 +210,8 @@ The report has a versioned schema and includes full time-series data:
     "monthly": [
       {
         "period": "2026-07",
+        "startDate": "2026-07-01",
+        "endDate": "2026-07-31",
         "commits": 28,
         "additions": 1480,
         "deletions": 312

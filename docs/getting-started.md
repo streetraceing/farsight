@@ -48,7 +48,7 @@ Run Farsight in a repository that contains a `package.json` file and Git history
 npx @streetraceing/farsight --cwd /path/to/project
 ```
 
-The report will show the project classification, dependency freshness, code metrics, Git activity, contributors, and recent daily, weekly, and monthly trends.
+The report will show the project classification, dependency freshness, code metrics, Git activity, contributors, and complete daily, weekly, and monthly activity tables.
 
 ## Useful first commands
 
@@ -62,6 +62,12 @@ Show up to 20 contributors:
 
 ```bash
 npx @streetraceing/farsight --top=20
+```
+
+Explore the report with keyboard navigation:
+
+```bash
+npx @streetraceing/farsight --interactive
 ```
 
 Skip the npm registry check when offline or when you only need local data:

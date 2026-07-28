@@ -27,7 +27,8 @@ farsight --cwd /path/to/project
 ## Principles
 
 - **Local-first:** project files and Git history are read from your machine.
-- **Useful by default:** a regular run produces a human-readable summary for the last 90 days.
+- **Useful by default:** a regular run produces complete readable tables for the last 90 days.
+- **Keyboard-friendly:** `--interactive` provides section navigation, scrolling, and refresh controls.
 - **Automation-ready:** `--json` exposes the complete report through a versioned schema.
 - **Network-optional:** `--no-network` skips the npm registry dependency check.
 

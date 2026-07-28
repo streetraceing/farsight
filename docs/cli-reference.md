@@ -22,15 +22,36 @@ npm install --global @streetraceing/farsight
 
 ## Options
 
-| Option            | Description                                  | Default                   | Rules                                |
-| ----------------- | -------------------------------------------- | ------------------------- | ------------------------------------ |
-| `--cwd <path>`    | Directory to analyze                         | Current working directory | The path is resolved before analysis |
-| `--since <days>`  | Git history window                           | `90`                      | Integer from `1` to `3650`           |
-| `--top <count>`   | Maximum contributors in the console report   | `10`                      | Integer from `1` to `100`            |
-| `--json`          | Print the complete report as JSON            | Off                       | Can be used with every other option  |
-| `--no-network`    | Do not run the npm registry dependency check | Off                       | All local analysis still runs        |
-| `-v`, `--version` | Print the installed package version          | -                         | Does not analyze a project           |
-| `-h`, `--help`    | Print usage help                             | -                         | Does not analyze a project           |
+| Option                | Description                                  | Default                   | Rules                                        |
+| --------------------- | -------------------------------------------- | ------------------------- | -------------------------------------------- |
+| `--cwd <path>`        | Directory to analyze                         | Current working directory | The path is resolved before analysis         |
+| `--since <days>`      | Git history window                           | `90`                      | Integer from `1` to `3650`                   |
+| `--top <count>`       | Maximum contributors in the report           | `10`                      | Integer from `1` to `100`                    |
+| `-i`, `--interactive` | Open the keyboard-driven terminal interface  | Off                       | Requires a TTY; cannot be combined with JSON |
+| `--json`              | Print the complete report as JSON            | Off                       | Cannot be combined with interactive mode     |
+| `--no-network`        | Do not run the npm registry dependency check | Off                       | All local analysis still runs                |
+| `-v`, `--version`     | Print the installed package version          | -                         | Does not analyze a project                   |
+| `-h`, `--help`        | Print usage help                             | -                         | Does not analyze a project                   |
+
+## Interactive controls
+
+Run the interface with:
+
+```bash
+farsight --interactive
+```
+
+| Key                 | Action                         |
+| ------------------- | ------------------------------ |
+| Left / Right / Tab  | Switch report sections         |
+| Up / Down           | Scroll one line                |
+| Page Up / Page Down | Scroll one page                |
+| Home / End          | Jump to the beginning or end   |
+| `1`-`9`             | Open a report section directly |
+| `r`                 | Re-run the complete analysis   |
+| `q` / Escape        | Close the interface            |
+
+The interface uses an alternate terminal screen and restores the original terminal state when it exits.
 
 ## Examples
 
@@ -38,6 +59,12 @@ Analyze the current directory:
 
 ```bash
 farsight
+```
+
+Open an interactive report without an npm registry request:
+
+```bash
+farsight --interactive --no-network
 ```
 
 Analyze a different project with 180 days of Git history:

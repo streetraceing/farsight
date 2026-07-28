@@ -46,6 +46,10 @@ function emptyGit(reason: string | null = null): GitReport {
   };
 }
 
+function formatDate(value: Date): string {
+  return value.toISOString().slice(0, 10);
+}
+
 function isoWeek(date: string): string {
   const [yearText = '', monthText = '', dayText = ''] = date.split('-');
   const year = Number(yearText);
@@ -63,15 +67,45 @@ function isoWeek(date: string): string {
   return `${weekYear}-W${String(week).padStart(2, '0')}`;
 }
 
+function isoWeekRange(period: string): [string, string] {
+  const match = period.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return [period, period];
+  const year = Number(match[1]);
+  const week = Number(match[2]);
+  const januaryFourth = new Date(Date.UTC(year, 0, 4));
+  const januaryFourthWeekday = januaryFourth.getUTCDay() || 7;
+  const start = new Date(januaryFourth);
+  start.setUTCDate(
+    januaryFourth.getUTCDate() - januaryFourthWeekday + 1 + (week - 1) * 7,
+  );
+  const end = new Date(start);
+  end.setUTCDate(start.getUTCDate() + 6);
+  return [formatDate(start), formatDate(end)];
+}
+
+function monthRange(period: string): [string, string] {
+  const match = period.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return [period, period];
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const end = new Date(Date.UTC(year, month, 0));
+  return [formatDate(start), formatDate(end)];
+}
+
 function periodStats(
   periods: Map<string, MutableGitPeriodStats>,
   period: string,
+  startDate: string,
+  endDate: string,
 ): MutableGitPeriodStats {
   const existing = periods.get(period);
   if (existing) return existing;
 
   const created: MutableGitPeriodStats = {
     period,
+    startDate,
+    endDate,
     commits: 0,
     additions: 0,
     deletions: 0,
@@ -128,13 +162,19 @@ export function parseGitLog(text: string): ParsedGitLog {
       }
       contributorMap.set(key, contributor);
       current = contributor;
-      currentPeriods = date
-        ? [
-            periodStats(daily, date),
-            periodStats(weekly, isoWeek(date)),
-            periodStats(monthly, date.slice(0, 7)),
-          ]
-        : [];
+      if (date) {
+        const week = isoWeek(date);
+        const [weekStart, weekEnd] = isoWeekRange(week);
+        const month = date.slice(0, 7);
+        const [monthStart, monthEnd] = monthRange(month);
+        currentPeriods = [
+          periodStats(daily, date, date, date),
+          periodStats(weekly, week, weekStart, weekEnd),
+          periodStats(monthly, month, monthStart, monthEnd),
+        ];
+      } else {
+        currentPeriods = [];
+      }
       for (const period of currentPeriods) period.commits += 1;
       commits += 1;
       continue;

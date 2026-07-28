@@ -8,12 +8,12 @@ test('parseArgs reads common flags', () => {
     '--since=30',
     '--top',
     '5',
-    '--json',
+    '--interactive',
     '--no-network',
   ]);
   assert.equal(parsed.sinceDays, 30);
   assert.equal(parsed.top, 5);
-  assert.equal(parsed.json, true);
+  assert.equal(parsed.interactive, true);
   assert.equal(parsed.network, false);
 });
 
@@ -23,4 +23,11 @@ test('parseArgs rejects invalid windows', () => {
 
 test('parseArgs rejects a flag without a value', () => {
   assert.throws(() => parseArgs(['--cwd']), /requires a value/);
+});
+
+test('parseArgs rejects JSON in interactive mode', () => {
+  assert.throws(
+    () => parseArgs(['--json', '--interactive']),
+    /cannot be used together/,
+  );
 });

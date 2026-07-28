@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyzeDependencies } from './dependencies.js';
 import { analyzeGit } from './git.js';
+import { runInteractive } from './interactive.js';
 import { analyzeLoc } from './loc.js';
 import { readPackageInfo } from './package-info.js';
 import { detectProjectType } from './project-type.js';
@@ -28,6 +29,7 @@ export function parseArgs(argv: readonly string[]): CliOptions {
     sinceDays: 90,
     top: 10,
     json: false,
+    interactive: false,
     network: true,
     help: false,
     version: false,
@@ -38,6 +40,8 @@ export function parseArgs(argv: readonly string[]): CliOptions {
     if (!argument) continue;
 
     if (argument === '--json') options.json = true;
+    else if (argument === '--interactive' || argument === '-i')
+      options.interactive = true;
     else if (argument === '--no-network') options.network = false;
     else if (argument === '--help' || argument === '-h') options.help = true;
     else if (argument === '--version' || argument === '-v')
@@ -57,6 +61,8 @@ export function parseArgs(argv: readonly string[]): CliOptions {
   }
 
   if (!options.cwd) throw new Error('--cwd requires a path');
+  if (options.json && options.interactive)
+    throw new Error('--json and --interactive cannot be used together');
   if (
     !Number.isInteger(options.sinceDays) ||
     options.sinceDays < 1 ||
@@ -73,7 +79,7 @@ export function parseArgs(argv: readonly string[]): CliOptions {
 }
 
 export function helpText(): string {
-  return `farsight [options]\n\nAnalyze a project in the current directory.\n\nOptions:\n  --cwd <path>       analyze another directory\n  --since <days>     Git activity window (default: 90)\n  --top <count>      number of contributors to show (default: 10)\n  --json             print machine-readable JSON\n  --no-network       skip npm registry dependency check\n  -v, --version      print version\n  -h, --help         print help`;
+  return `farsight [options]\n\nAnalyze a project in the current directory.\n\nOptions:\n  --cwd <path>       analyze another directory\n  --since <days>     Git activity window (default: 90)\n  --top <count>      number of contributors to show (default: 10)\n  -i, --interactive  open the keyboard-driven terminal interface\n  --json             print machine-readable JSON\n  --no-network       skip npm registry dependency check\n  -v, --version      print version\n  -h, --help         print help`;
 }
 
 async function readOwnVersion(): Promise<string> {
@@ -148,6 +154,11 @@ export async function main(
   }
 
   const report = await analyzeProject(options);
+  if (options.interactive) {
+    await runInteractive(report, { reload: () => analyzeProject(options) });
+    return;
+  }
+
   console.log(
     options.json ? JSON.stringify(report, null, 2) : renderReport(report),
   );
