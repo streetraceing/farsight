@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createReportViews, renderReport } from '../src/render.js';
+import { renderTabBar } from '../src/interactive.js';
+import { createReportViews, renderReport, stripAnsi } from '../src/render.js';
 import type { FarsightReport, GitPeriodStats } from '../src/types.js';
 
 function period(day: number): GitPeriodStats {
@@ -23,9 +24,21 @@ function report(): FarsightReport {
     package: { name: 'sample', version: '1.0.0', private: false },
     project: {
       primary: 'Node.js CLI package',
+      ecosystem: 'JavaScript / Node.js',
+      framework: null,
+      kind: 'command-line application',
       packageManager: 'npm',
+      confidence: 'high',
       traits: ['TypeScript'],
       languages: [{ extension: '.ts', nonEmptyLines: 100 }],
+      detectedFiles: ['package.json', 'package-lock.json'],
+      signals: [
+        {
+          label: 'Manifest',
+          detail: 'Node.js package metadata detected',
+          source: 'package.json',
+        },
+      ],
     },
     dependencies: {
       available: true,
@@ -107,6 +120,7 @@ test('createReportViews exposes keyboard-friendly report sections', () => {
     views.map((view) => view.id),
     [
       'overview',
+      'insights',
       'project',
       'dependencies',
       'code',
@@ -117,4 +131,13 @@ test('createReportViews exposes keyboard-friendly report sections', () => {
       'monthly',
     ],
   );
+});
+
+test('interactive tabs keep identical visible geometry when selection changes', () => {
+  const views = createReportViews(report(), 100);
+  const first = stripAnsi(renderTabBar(views, 0, 500));
+  const second = stripAnsi(renderTabBar(views, 1, 500));
+  assert.equal(first, second);
+  assert.match(first, /\[1:Overview\]/);
+  assert.match(first, /\[0:Monthly\]/);
 });

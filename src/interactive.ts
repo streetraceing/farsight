@@ -1,6 +1,11 @@
 import { emitKeypressEvents, type Key } from 'node:readline';
 import type { FarsightReport } from './types.js';
-import { createReportViews, renderStyle } from './render.js';
+import {
+  createReportViews,
+  renderStyle,
+  stripAnsi,
+  type ReportView,
+} from './render.js';
 
 interface InteractiveOptions {
   reload: () => Promise<FarsightReport>;
@@ -12,15 +17,74 @@ const ALT_SCREEN_OFF = '\x1b[?1049l';
 const HIDE_CURSOR = '\x1b[?25l';
 const SHOW_CURSOR = '\x1b[?25h';
 
-function stripAnsi(value: string): string {
-  return value.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '');
-}
-
 function fitLine(value: string, width: number): string {
   const plain = stripAnsi(value);
   if (plain.length <= width) return value;
   if (width <= 1) return '…'.slice(0, width);
   return `${plain.slice(0, width - 1)}…`;
+}
+
+function shortcutFor(index: number): string {
+  if (index < 9) return String(index + 1);
+  if (index === 9) return '0';
+  return '·';
+}
+
+export function renderTabBar(
+  views: readonly Pick<ReportView, 'title'>[],
+  activeIndex: number,
+  width: number,
+): string {
+  const labels = views.map((view, index) => {
+    // Every tab keeps the same visible brackets in active and inactive states.
+    // Selection is represented only through ANSI styling, so switching tabs
+    // cannot shift the rest of the header horizontally.
+    const label = `[${shortcutFor(index)}:${view.title}]`;
+    return index === activeIndex
+      ? renderStyle.inverse(renderStyle.bold(renderStyle.cyan(label)))
+      : renderStyle.dim(label);
+  });
+  return fitLine(labels.join(' '), width);
+}
+
+function dependencyState(report: FarsightReport): string {
+  if (!report.dependencies.available) return 'deps unavailable';
+  if (!report.dependencies.checked) return 'deps not checked';
+  if (report.dependencies.outdatedCount === 0) return 'deps current';
+  return `${report.dependencies.outdatedCount} dependency updates`;
+}
+
+export function renderInteractiveContext(
+  report: FarsightReport,
+  width: number,
+): readonly [string, string] {
+  const framework = report.project.framework
+    ? ` · ${report.project.framework}`
+    : '';
+  const projectLine = [
+    renderStyle.bold(renderStyle.magenta(report.project.primary)),
+    renderStyle.blue(report.project.ecosystem),
+    `${renderStyle.cyan('kind')} ${report.project.kind}`,
+    `${renderStyle.cyan('confidence')} ${
+      report.project.confidence === 'high'
+        ? renderStyle.green('high')
+        : report.project.confidence === 'medium'
+          ? renderStyle.yellow('medium')
+          : renderStyle.red('low')
+    }${framework}`,
+  ].join('  ·  ');
+
+  const git = report.git.available
+    ? `${renderStyle.cyan(report.git.branch ?? 'detached')} · ${renderStyle.yellow(report.git.commits)} commits · ${renderStyle.magenta(report.git.contributorsCount)} contributors`
+    : renderStyle.dim('Git unavailable');
+  const statsLine = [
+    `${renderStyle.green(report.loc.nonEmpty)} non-empty lines`,
+    `${renderStyle.yellow(report.loc.files)} source files`,
+    dependencyState(report),
+    git,
+  ].join('  ·  ');
+
+  return [fitLine(projectLine, width), fitLine(statsLine, width)];
 }
 
 export async function runInteractive(
@@ -53,19 +117,13 @@ export async function runInteractive(
     const active = views[activeIndex];
     if (!active) return;
 
-    const tabLabels = views.map((view, index) => {
-      const shortcut = index < 9 ? `${index + 1}` : '0';
-      const label = `${shortcut}:${view.title}`;
-      return index === activeIndex
-        ? renderStyle.bold(renderStyle.cyan(`[${label}]`))
-        : renderStyle.dim(label);
-    });
-    const tabs = fitLine(tabLabels.join('  '), width);
+    const tabs = renderTabBar(views, activeIndex, width);
+    const [projectLine, statsLine] = renderInteractiveContext(report, width);
     const help = renderStyle.dim(
-      '←/→ tabs  ↑/↓ scroll  PgUp/PgDn  1-9 jump  r refresh  q/Esc quit',
+      '←/→/Tab sections  ↑/↓ scroll  PgUp/PgDn  1-9/0 jump  r refresh  q/Esc quit',
     );
     const contentLines = active.content.split('\n');
-    const viewportHeight = Math.max(1, height - 4);
+    const viewportHeight = Math.max(1, height - 5);
     const maxOffset = Math.max(0, contentLines.length - viewportHeight);
     scrollOffset = Math.max(0, Math.min(scrollOffset, maxOffset));
     const visible = contentLines
@@ -73,7 +131,10 @@ export async function runInteractive(
       .map((line) => fitLine(line, width));
     while (visible.length < viewportHeight) visible.push('');
 
-    const position = `${scrollOffset + 1}-${Math.min(contentLines.length, scrollOffset + viewportHeight)} / ${contentLines.length}`;
+    const position = `${scrollOffset + 1}-${Math.min(
+      contentLines.length,
+      scrollOffset + viewportHeight,
+    )} / ${contentLines.length}`;
     const footer = refreshing
       ? renderStyle.yellow('Refreshing analysis…')
       : status
@@ -81,7 +142,9 @@ export async function runInteractive(
         : `${help}  ${renderStyle.dim(position)}`;
 
     output.write(
-      `${CLEAR_SCREEN}${tabs}\n${'─'.repeat(Math.min(width, 160))}\n${visible.join('\n')}\n${fitLine(footer, width)}`,
+      `${CLEAR_SCREEN}${tabs}\n${projectLine}\n${statsLine}\n${renderStyle.dim(
+        renderStyle.cyan('─'.repeat(Math.min(width, 160))),
+      )}\n${visible.join('\n')}\n${fitLine(footer, width)}`,
     );
   };
 
@@ -124,7 +187,7 @@ export async function runInteractive(
     }
 
     const height = Math.max(12, output.rows || 30);
-    const page = Math.max(1, height - 6);
+    const page = Math.max(1, height - 7);
 
     if (key.name === 'right' || key.name === 'tab') changeTab(1);
     else if (key.name === 'left') changeTab(-1);
@@ -134,12 +197,13 @@ export async function runInteractive(
     else if (key.name === 'pagedown') scrollOffset += page;
     else if (key.name === 'home') scrollOffset = 0;
     else if (key.name === 'end') scrollOffset = Number.MAX_SAFE_INTEGER;
-    else if (/^[1-9]$/.test(character)) {
-      const requested = Number(character) - 1;
+    else if (/^[0-9]$/.test(character)) {
+      const requested = character === '0' ? 9 : Number(character) - 1;
       const count = createReportViews(report).length;
       if (requested < count) {
         activeIndex = requested;
         scrollOffset = 0;
+        status = '';
       }
     } else if (character === 'r' && !refreshing) {
       refreshing = true;

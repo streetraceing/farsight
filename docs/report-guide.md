@@ -6,9 +6,9 @@ Farsight prints a complete human-readable report by default. Add `--interactive`
 
 ## Overview and project
 
-The report starts with a compact overview of project type, package metadata, source size, dependency state, and Git totals. The Project section then shows the detected package manager, traits, project root, visibility, generation time, and primary source languages.
+The report starts with a compact overview of project type, ecosystem, framework, application kind, confidence, source size, dependency state, and Git totals. The Insights section derives code-density, dependency-health, Git-intensity, and peak-activity indicators. The Project section then shows the toolchain, traits, primary languages, detected manifests/configuration, and the concrete evidence behind classification.
 
-Farsight uses `package.json`, lockfiles, selected dependency names, configuration files, and source extensions to estimate the project type. The result is intentionally heuristic and is most useful for quickly orienting yourself in an unfamiliar repository.
+Farsight uses JavaScript package metadata, Cargo manifests, .NET solution/project files, Python and Go metadata, JVM build files, framework configuration, and source extensions. It recognizes Tauri, pure Rust, .NET/C#, Python, Go, Java/Kotlin, Flutter, PHP, Ruby, Swift, Godot, C/C++, and common Node.js ecosystems. Mixed projects can expose more than one ecosystem. The result is intentionally heuristic and is most useful for quickly orienting yourself in an unfamiliar repository.
 
 ## Dependencies
 
@@ -58,7 +58,7 @@ Run:
 farsight --interactive
 ```
 
-The interface separates the report into Overview, Project, Dependencies, Code, Git, Contributors, Daily, Weekly, and Monthly views. Switch views with the arrow keys, Tab, or number shortcuts. Scroll with the arrow or paging keys, press `r` to refresh the analysis, and press `q` or Escape to exit.
+The interface separates the report into Overview, Insights, Project, Dependencies, Code, Git, Contributors, Daily, Weekly, and Monthly views. A persistent two-line context header keeps project classification, ecosystem, code size, dependency state, branch, commits, and contributor count visible while the report scrolls. Every tab uses fixed visible brackets, so changing sections or scrolling does not shift the tab geometry. Switch views with Left/Right, Tab, or `1`-`9`/`0`; scroll with arrow or paging keys; press `r` to refresh and `q` or Escape to exit.
 
 Interactive mode requires an attached terminal and cannot be combined with `--json`.
 

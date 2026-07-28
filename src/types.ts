@@ -106,11 +106,25 @@ export interface ProjectLanguage {
   nonEmptyLines: number;
 }
 
+export type ProjectConfidence = 'high' | 'medium' | 'low';
+
+export interface ProjectSignal {
+  label: string;
+  detail: string;
+  source: string;
+}
+
 export interface ProjectReport {
   primary: string;
+  ecosystem: string;
+  framework: string | null;
+  kind: string;
   packageManager: string | null;
+  confidence: ProjectConfidence;
   traits: string[];
   languages: ProjectLanguage[];
+  detectedFiles: string[];
+  signals: ProjectSignal[];
 }
 
 export interface FarsightReport {

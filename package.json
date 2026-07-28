@@ -1,6 +1,6 @@
 {
   "name": "@streetraceing/farsight",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Analyze dependency freshness, source lines, project type, and Git activity.",
   "type": "module",
   "lint-staged": {
@@ -42,7 +42,11 @@
     "dependencies",
     "git",
     "loc",
-    "typescript"
+    "typescript",
+    "rust",
+    "dotnet",
+    "tauri",
+    "project-detection"
   ],
   "devDependencies": {
     "@types/node": "^22.15.0",

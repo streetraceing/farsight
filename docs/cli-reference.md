@@ -47,11 +47,11 @@ farsight --interactive
 | Up / Down           | Scroll one line                |
 | Page Up / Page Down | Scroll one page                |
 | Home / End          | Jump to the beginning or end   |
-| `1`-`9`             | Open a report section directly |
+| `1`-`9`, `0`        | Open a report section directly |
 | `r`                 | Re-run the complete analysis   |
 | `q` / Escape        | Close the interface            |
 
-The interface uses an alternate terminal screen and restores the original terminal state when it exits.
+The interface uses an alternate terminal screen and restores the original terminal state when it exits. Its fixed-width tab bar does not move when the active section changes, and the persistent context header keeps core project and Git metrics visible during scrolling.
 
 ## Examples
 

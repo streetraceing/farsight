@@ -70,12 +70,12 @@ The complete documentation is available in [`docs/`](./docs/README.md):
 
 | Area         | What you get                                                                                        |
 | ------------ | --------------------------------------------------------------------------------------------------- |
-| Project      | Detected project type, package manager, architecture traits, and primary source languages           |
+| Project      | Ecosystem, framework, application kind, confidence, detector evidence, toolchain, and languages     |
 | Dependencies | Direct dependency count and available updates from `npm outdated`                                   |
 | Code         | Source-file count, physical and non-empty lines, plus a language breakdown                          |
 | Git          | Branch, remote, contributors, line changes, and complete daily, weekly, and monthly activity tables |
 
-Farsight recognizes common Node.js, frontend, backend, mobile, and desktop project types, including Next.js, Vite, React, Vue, Angular, Astro, NestJS, Electron, and more.
+Farsight recognizes multi-language projects and native toolchains. Detection includes Tauri, Rust/Cargo, .NET and C#, Python, Go, Java/Kotlin, Flutter, PHP, Ruby, Swift, Godot, C/C++, and a broad set of Node.js frameworks such as Next.js, Vite, React, Vue, Angular, Astro, NestJS, and Electron.
 
 ## Command reference
 
@@ -128,7 +128,7 @@ npx @streetraceing/farsight --since=365 --top=20
 npx @streetraceing/farsight --interactive
 ```
 
-Use the left and right arrows or number keys to switch sections, the up and down arrows to scroll, `r` to refresh the analysis, and `q` or Escape to exit.
+The interactive header keeps the project type, ecosystem, code size, dependency state, branch, commits, and contributor count visible while you scroll. Use Left/Right or Tab to switch sections, Up/Down and paging keys to scroll, `1`-`9` or `0` to jump directly, `r` to refresh, and `q` or Escape to exit.
 
 ### Work without an npm registry check
 
@@ -146,7 +146,7 @@ npx @streetraceing/farsight --json > farsight-report.json
 
 ### Project
 
-Farsight combines `package.json`, lockfiles, configuration files, installed dependency names, and source extensions to estimate the primary project type. The result is a useful heuristic, not a replacement for project documentation.
+Farsight combines package manifests, workspace files, framework configuration, dependency names, project files, and source extensions to estimate the project type. The report includes the ecosystem, framework, application kind, confidence level, detected files, and concrete evidence behind the classification. It recognizes mixed projects such as Tauri as Rust plus JavaScript instead of reducing them to a single package ecosystem. Detection remains heuristic and is not a replacement for project documentation.
 
 ### Dependencies
 
@@ -180,8 +180,20 @@ The report has a versioned schema and includes full time-series data:
 {
   "schemaVersion": 1,
   "project": {
-    "primary": "React + Vite frontend",
-    "packageManager": "npm"
+    "primary": "Tauri desktop application",
+    "ecosystem": "Rust + JavaScript",
+    "framework": "Tauri",
+    "kind": "desktop application",
+    "packageManager": "pnpm + Cargo",
+    "confidence": "high",
+    "detectedFiles": ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"],
+    "signals": [
+      {
+        "label": "Framework",
+        "detail": "Tauri desktop shell detected",
+        "source": "src-tauri/tauri.conf.json"
+      }
+    ]
   },
   "git": {
     "commits": 42,
