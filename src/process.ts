@@ -35,8 +35,10 @@ export function run(
       windowsHide: true,
     });
 
-    let stdout = '';
-    let stderr = '';
+    // Chunks are decoded only once the stream ends: decoding a Buffer that
+    // ends in the middle of a multi-byte UTF-8 sequence would corrupt it.
+    const stdoutChunks: Buffer[] = [];
+    const stderrChunks: Buffer[] = [];
     let outputBytes = 0;
     let settled = false;
 
@@ -54,8 +56,7 @@ export function run(
         return;
       }
 
-      if (kind === 'stdout') stdout += chunk.toString('utf8');
-      else stderr += chunk.toString('utf8');
+      (kind === 'stdout' ? stdoutChunks : stderrChunks).push(chunk);
     };
 
     child.stdout.on('data', (chunk: Buffer) => append('stdout', chunk));
@@ -66,14 +67,18 @@ export function run(
       settled = true;
 
       const exitCode = code ?? 1;
-      const result: RunResult = { stdout, stderr, exitCode };
+      const result: RunResult = {
+        stdout: Buffer.concat(stdoutChunks).toString('utf8'),
+        stderr: Buffer.concat(stderrChunks).toString('utf8'),
+        exitCode,
+      };
       if (allowExitCodes.includes(exitCode)) {
         resolve(result);
         return;
       }
 
       const error = new Error(
-        stderr.trim() || `${command} exited with code ${exitCode}`,
+        result.stderr.trim() || `${command} exited with code ${exitCode}`,
       ) as RunError;
       Object.assign(error, result);
       reject(error);

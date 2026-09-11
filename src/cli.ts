@@ -12,6 +12,13 @@ import type { CliOptions, FarsightReport } from './types.js';
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 
+/** An error caused by invalid command-line input, not by a failing analysis. */
+export class CliUsageError extends Error {}
+
+function usageError(message: string): CliUsageError {
+  return new CliUsageError(message);
+}
+
 function requireValue(
   argv: readonly string[],
   index: number,
@@ -19,7 +26,7 @@ function requireValue(
 ): string {
   const value = argv[index];
   if (!value || value.startsWith('--'))
-    throw new Error(`${option} requires a value`);
+    throw usageError(`${option} requires a value`);
   return value;
 }
 
@@ -57,21 +64,21 @@ export function parseArgs(argv: readonly string[]): CliOptions {
       options.top = Number(requireValue(argv, ++index, '--top'));
     else if (argument.startsWith('--top='))
       options.top = Number(argument.slice(6));
-    else throw new Error(`Unknown option: ${argument}`);
+    else throw usageError(`Unknown option: ${argument}`);
   }
 
-  if (!options.cwd) throw new Error('--cwd requires a path');
+  if (!options.cwd) throw usageError('--cwd requires a path');
   if (options.json && options.interactive)
-    throw new Error('--json and --interactive cannot be used together');
+    throw usageError('--json and --interactive cannot be used together');
   if (
     !Number.isInteger(options.sinceDays) ||
     options.sinceDays < 1 ||
     options.sinceDays > 3650
   ) {
-    throw new Error('--since must be an integer between 1 and 3650');
+    throw usageError('--since must be an integer between 1 and 3650');
   }
   if (!Number.isInteger(options.top) || options.top < 1 || options.top > 100) {
-    throw new Error('--top must be an integer between 1 and 100');
+    throw usageError('--top must be an integer between 1 and 100');
   }
 
   options.cwd = path.resolve(options.cwd);

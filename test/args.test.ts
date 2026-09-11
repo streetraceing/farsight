@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseArgs } from '../src/cli.js';
+import { CliUsageError, parseArgs } from '../src/cli.js';
 
 test('parseArgs reads common flags', () => {
   const parsed = parseArgs([
@@ -30,4 +30,8 @@ test('parseArgs rejects JSON in interactive mode', () => {
     () => parseArgs(['--json', '--interactive']),
     /cannot be used together/,
   );
+});
+
+test('parseArgs reports unknown options as usage errors', () => {
+  assert.throws(() => parseArgs(['--nope']), CliUsageError);
 });

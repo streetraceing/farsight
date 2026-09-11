@@ -93,8 +93,8 @@ farsight [options]
 | `-i`, `--interactive` | Open the keyboard-driven terminal interface | `false`           |
 | `--json`              | Print a machine-readable JSON report        | `false`           |
 | `--no-network`        | Skip the npm registry dependency check      | `false`           |
-| `-v`, `--version`     | Print the installed Farsight version        | —                 |
-| `-h`, `--help`        | Print the command help                      | —                 |
+| `-v`, `--version`     | Print the installed Farsight version        | none              |
+| `-h`, `--help`        | Print the command help                      | none              |
 
 ## Examples
 

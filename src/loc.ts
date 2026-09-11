@@ -127,66 +127,74 @@ export async function analyzeLoc(
     skippedLargeFiles: 0,
     byExtension: {},
   };
+  const sourceFiles: string[] = [];
 
-  async function visit(directory: string): Promise<void> {
+  async function collect(directory: string): Promise<void> {
     let entries;
     try {
       entries = await readdir(directory, { withFileTypes: true });
-    } catch (error: unknown) {
-      if (
-        isNodeError(error) &&
-        (error.code === 'EACCES' || error.code === 'EPERM')
-      )
-        return;
-      throw error;
+    } catch {
+      return;
     }
 
+    const pending: Promise<void>[] = [];
     for (const entry of entries) {
-      const fullPath = path.join(directory, entry.name);
-
       if (entry.isDirectory()) {
-        if (!ignoredDirectories.has(entry.name)) await visit(fullPath);
-        continue;
+        if (!ignoredDirectories.has(entry.name))
+          pending.push(collect(path.join(directory, entry.name)));
+      } else if (
+        entry.isFile() &&
+        sourceExtensions.has(path.extname(entry.name).toLowerCase())
+      ) {
+        sourceFiles.push(path.join(directory, entry.name));
       }
-
-      if (!entry.isFile()) continue;
-      const extension = path.extname(entry.name).toLowerCase();
-      if (!sourceExtensions.has(extension)) continue;
-
-      const metadata = await stat(fullPath);
-      if (metadata.size > maxFileBytes) {
-        totals.skippedLargeFiles += 1;
-        continue;
-      }
-
-      const text = await readFile(fullPath, 'utf8');
-      if (text.includes('\u0000')) continue;
-      const counted = countText(text);
-
-      totals.files += 1;
-      totals.lines += counted.lines;
-      totals.nonEmpty += counted.nonEmpty;
-      const bucket: ExtensionStats = totals.byExtension[extension] ?? {
-        files: 0,
-        lines: 0,
-        nonEmpty: 0,
-      };
-      bucket.files += 1;
-      bucket.lines += counted.lines;
-      bucket.nonEmpty += counted.nonEmpty;
-      totals.byExtension[extension] = bucket;
     }
+    await Promise.all(pending);
   }
 
-  await visit(root);
+  async function measure(fullPath: string): Promise<void> {
+    let metadata;
+    try {
+      metadata = await stat(fullPath);
+    } catch {
+      return;
+    }
+    if (metadata.size > maxFileBytes) {
+      totals.skippedLargeFiles += 1;
+      return;
+    }
+
+    let text: string;
+    try {
+      text = await readFile(fullPath, 'utf8');
+    } catch {
+      return;
+    }
+    if (text.includes('\u0000')) return;
+    const counted = countText(text);
+
+    totals.files += 1;
+    totals.lines += counted.lines;
+    totals.nonEmpty += counted.nonEmpty;
+    const extension = path.extname(fullPath).toLowerCase();
+    const bucket: ExtensionStats = totals.byExtension[extension] ?? {
+      files: 0,
+      lines: 0,
+      nonEmpty: 0,
+    };
+    bucket.files += 1;
+    bucket.lines += counted.lines;
+    bucket.nonEmpty += counted.nonEmpty;
+    totals.byExtension[extension] = bucket;
+  }
+
+  await collect(root);
+  await Promise.all(sourceFiles.map(measure));
+
   totals.byExtension = Object.fromEntries(
     Object.entries(totals.byExtension).sort(
       (a, b) => b[1].nonEmpty - a[1].nonEmpty,
     ),
   );
   return totals;
-}
-
-function isNodeError(error: unknown): error is NodeJS.ErrnoException {
-  return error instanceof Error && 'code' in error;
 }

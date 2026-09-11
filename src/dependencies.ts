@@ -40,13 +40,12 @@ function flattenOutdated(raw: unknown): NamedOutdatedRecord[] {
 export function classifyDependency(
   item: Pick<DependencyItem, 'current' | 'wanted' | 'latest'>,
 ): DependencyStatus {
-  if (!item.latest) return 'unknown';
-  if (item.current && item.wanted && item.current !== item.wanted)
-    return 'update-within-range';
-  if (item.wanted && item.latest && item.wanted !== item.latest)
-    return 'newer-outside-range';
-  if (item.current && item.latest && item.current !== item.latest)
-    return 'outdated';
+  // A package that is not installed or has no registry data cannot be
+  // meaningfully classified as current or outdated.
+  if (!item.latest || !item.current) return 'unknown';
+  if (item.wanted && item.current !== item.wanted) return 'update-within-range';
+  if (item.wanted && item.wanted !== item.latest) return 'newer-outside-range';
+  if (item.current !== item.latest) return 'outdated';
   return 'latest';
 }
 
@@ -86,7 +85,12 @@ export async function analyzeDependencies(
     });
 
     const text = result.stdout.trim();
-    const parsed: unknown = text ? JSON.parse(text) : {};
+    let parsed: unknown;
+    try {
+      parsed = text ? JSON.parse(text) : {};
+    } catch {
+      throw new Error('npm outdated returned invalid JSON');
+    }
     const declaredByName = new Map(declared.map((item) => [item.name, item]));
     const items = flattenOutdated(parsed)
       .map((item): DependencyItem => {

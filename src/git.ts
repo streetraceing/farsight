@@ -5,8 +5,6 @@ interface MutableContributor extends Omit<Contributor, 'activeDays'> {
   activeDays: Set<string>;
 }
 
-type MutableGitPeriodStats = GitPeriodStats;
-
 export interface ParsedGitLog {
   commits: number;
   activeDays: number;
@@ -94,15 +92,15 @@ function monthRange(period: string): [string, string] {
 }
 
 function periodStats(
-  periods: Map<string, MutableGitPeriodStats>,
+  periods: Map<string, GitPeriodStats>,
   period: string,
   startDate: string,
   endDate: string,
-): MutableGitPeriodStats {
+): GitPeriodStats {
   const existing = periods.get(period);
   if (existing) return existing;
 
-  const created: MutableGitPeriodStats = {
+  const created: GitPeriodStats = {
     period,
     startDate,
     endDate,
@@ -114,20 +112,18 @@ function periodStats(
   return created;
 }
 
-function sortedPeriods(
-  periods: Map<string, MutableGitPeriodStats>,
-): GitPeriodStats[] {
+function sortedPeriods(periods: Map<string, GitPeriodStats>): GitPeriodStats[] {
   return [...periods.values()].sort((a, b) => a.period.localeCompare(b.period));
 }
 
 export function parseGitLog(text: string): ParsedGitLog {
   const contributorMap = new Map<string, MutableContributor>();
   const activeDays = new Set<string>();
-  const daily = new Map<string, MutableGitPeriodStats>();
-  const weekly = new Map<string, MutableGitPeriodStats>();
-  const monthly = new Map<string, MutableGitPeriodStats>();
+  const daily = new Map<string, GitPeriodStats>();
+  const weekly = new Map<string, GitPeriodStats>();
+  const monthly = new Map<string, GitPeriodStats>();
   let current: MutableContributor | null = null;
-  let currentPeriods: MutableGitPeriodStats[] = [];
+  let currentPeriods: GitPeriodStats[] = [];
   let commits = 0;
   let additions = 0;
   let deletions = 0;

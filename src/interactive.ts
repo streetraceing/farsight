@@ -17,17 +17,20 @@ const ALT_SCREEN_OFF = '\x1b[?1049l';
 const HIDE_CURSOR = '\x1b[?25l';
 const SHOW_CURSOR = '\x1b[?25h';
 
+const number = new Intl.NumberFormat('en-US');
+const SEPARATOR = renderStyle.dim(' │ ');
+
 function fitLine(value: string, width: number): string {
   const plain = stripAnsi(value);
   if (plain.length <= width) return value;
-  if (width <= 1) return '…'.slice(0, width);
-  return `${plain.slice(0, width - 1)}…`;
+  if (width <= 3) return plain.slice(0, width);
+  return `${plain.slice(0, width - 3)}...`;
 }
 
 function shortcutFor(index: number): string {
   if (index < 9) return String(index + 1);
   if (index === 9) return '0';
-  return '·';
+  return '+';
 }
 
 export function renderTabBar(
@@ -48,43 +51,58 @@ export function renderTabBar(
 }
 
 function dependencyState(report: FarsightReport): string {
-  if (!report.dependencies.available) return 'deps unavailable';
-  if (!report.dependencies.checked) return 'deps not checked';
-  if (report.dependencies.outdatedCount === 0) return 'deps current';
-  return `${report.dependencies.outdatedCount} dependency updates`;
+  if (!report.dependencies.available)
+    return renderStyle.dim('deps unavailable');
+  if (!report.dependencies.checked) return renderStyle.dim('deps not checked');
+  if (report.dependencies.outdatedCount === 0)
+    return renderStyle.green('deps current');
+  return `${renderStyle.yellow(number.format(report.dependencies.outdatedCount))} dependency updates`;
 }
 
 export function renderInteractiveContext(
   report: FarsightReport,
   width: number,
 ): readonly [string, string] {
-  const framework = report.project.framework
-    ? ` · ${report.project.framework}`
-    : '';
-  const projectLine = [
+  const confidence =
+    report.project.confidence === 'high'
+      ? renderStyle.green('high')
+      : report.project.confidence === 'medium'
+        ? renderStyle.yellow('medium')
+        : renderStyle.red('low');
+
+  const projectParts = [
     renderStyle.bold(renderStyle.magenta(report.project.primary)),
     renderStyle.blue(report.project.ecosystem),
-    `${renderStyle.cyan('kind')} ${report.project.kind}`,
-    `${renderStyle.cyan('confidence')} ${
-      report.project.confidence === 'high'
-        ? renderStyle.green('high')
-        : report.project.confidence === 'medium'
-          ? renderStyle.yellow('medium')
-          : renderStyle.red('low')
-    }${framework}`,
-  ].join('  ·  ');
+    `${renderStyle.dim('kind')} ${report.project.kind}`,
+    `${renderStyle.dim('confidence')} ${confidence}`,
+  ];
+  if (report.project.framework) {
+    projectParts.push(
+      `${renderStyle.dim('framework')} ${report.project.framework}`,
+    );
+  }
 
-  const git = report.git.available
-    ? `${renderStyle.cyan(report.git.branch ?? 'detached')} · ${renderStyle.yellow(report.git.commits)} commits · ${renderStyle.magenta(report.git.contributorsCount)} contributors`
-    : renderStyle.dim('Git unavailable');
-  const statsLine = [
-    `${renderStyle.green(report.loc.nonEmpty)} non-empty lines`,
-    `${renderStyle.yellow(report.loc.files)} source files`,
+  const gitParts: string[] = report.git.available
+    ? [
+        renderStyle.cyan(report.git.branch ?? 'detached HEAD'),
+        `${renderStyle.yellow(number.format(report.git.commits))} commits`,
+        `${renderStyle.magenta(number.format(report.git.contributorsCount))} ${
+          report.git.contributorsCount === 1 ? 'contributor' : 'contributors'
+        }`,
+      ]
+    : [renderStyle.dim('Git unavailable')];
+
+  const statsParts = [
+    `${renderStyle.green(number.format(report.loc.nonEmpty))} non-empty lines`,
+    `${renderStyle.cyan(number.format(report.loc.files))} source files`,
     dependencyState(report),
-    git,
-  ].join('  ·  ');
+    ...gitParts,
+  ];
 
-  return [fitLine(projectLine, width), fitLine(statsLine, width)];
+  return [
+    fitLine(projectParts.join(SEPARATOR), width),
+    fitLine(statsParts.join(SEPARATOR), width),
+  ];
 }
 
 export async function runInteractive(
@@ -136,7 +154,7 @@ export async function runInteractive(
       scrollOffset + viewportHeight,
     )} / ${contentLines.length}`;
     const footer = refreshing
-      ? renderStyle.yellow('Refreshing analysis…')
+      ? renderStyle.yellow('Refreshing analysis...')
       : status
         ? renderStyle.green(status)
         : `${help}  ${renderStyle.dim(position)}`;

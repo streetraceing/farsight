@@ -83,13 +83,12 @@ function terminalWidth(): number {
 
 function fitCell(value: string, width: number, alignment: Alignment): string {
   const plain = stripAnsi(value);
-  const clipped =
-    plain.length > width
-      ? width <= 1
-        ? '…'.slice(0, width)
-        : `${plain.slice(0, width - 1)}…`
-      : value;
-  const padding = Math.max(0, width - visibleLength(clipped));
+  let clipped = plain;
+  if (plain.length > width) {
+    clipped =
+      width <= 3 ? plain.slice(0, width) : `${plain.slice(0, width - 3)}...`;
+  }
+  const padding = Math.max(0, width - clipped.length);
   return alignment === 'right'
     ? `${' '.repeat(padding)}${clipped}`
     : `${clipped}${' '.repeat(padding)}`;
@@ -126,42 +125,7 @@ function resolveWidths(
   return widths;
 }
 
-function semanticValue(value: string): string {
-  if (ANSI_PATTERN.test(value)) {
-    ANSI_PATTERN.lastIndex = 0;
-    return value;
-  }
-  ANSI_PATTERN.lastIndex = 0;
-  const plain = value.trim();
-  if (!plain || plain === '-') return dim(value);
-  if (/^(?:unavailable|unknown|not detected|not checked|skipped)/i.test(plain))
-    return dim(value);
-  if (
-    /^(?:high|completed|up to date|latest|public|available|healthy)/i.test(
-      plain,
-    )
-  )
-    return green(value);
-  if (/^(?:medium|outdated|needs|warning|update)/i.test(plain))
-    return yellow(value);
-  if (/^(?:low|failed|error|new range)/i.test(plain)) return red(value);
-  if (/^\+\d/.test(plain)) return green(value);
-  if (/^-\d/.test(plain)) return red(value);
-  if (/^-?\d[\d,.]*(?:\s|$)/.test(plain)) return yellow(value);
-  if (/\d+%$/.test(plain)) return magenta(value);
-  if (/^\d{4}-\d{2}(?:-\d{2})?/.test(plain)) return blue(value);
-  return value;
-}
-
-function metricCellStyle(
-  value: string,
-  _rowIndex: number,
-  columnIndex: number,
-): string {
-  return columnIndex === 0 ? cyan(value) : semanticValue(value);
-}
-
-export function renderTable(
+function renderTable(
   rows: readonly Cell[][],
   headers: readonly string[],
   options: TableOptions = {},
@@ -178,18 +142,16 @@ export function renderTable(
   );
   const border = (left: string, middle: string, right: string): string =>
     dim(
-      cyan(
-        `${left}${widths
-          .map((width) => '─'.repeat(width + 2))
-          .join(middle)}${right}`,
-      ),
+      `${left}${widths
+        .map((width) => '─'.repeat(width + 2))
+        .join(middle)}${right}`,
     );
   const row = (
     cells: readonly string[],
     header = false,
     rowIndex = -1,
   ): string =>
-    dim(cyan('│')) +
+    dim('│') +
     cells
       .map((cell, index) => {
         const width = widths[index] ?? 3;
@@ -200,8 +162,8 @@ export function renderTable(
         const value = fitCell(styled, width, alignment);
         return ` ${value} `;
       })
-      .join(dim(cyan('│'))) +
-    dim(cyan('│'));
+      .join(dim('│')) +
+    dim('│');
 
   return [
     border('┌', '┬', '┐'),
@@ -212,47 +174,80 @@ export function renderTable(
   ].join('\n');
 }
 
-function title(text: string): string {
-  return bold(cyan(text));
+// ---------------------------------------------------------------------------
+// Styling helpers
+//
+// Values are styled explicitly where they are produced, instead of being
+// sniffed with regular expressions at render time. Every metric row carries
+// its own style; table cells are styled per column.
+// ---------------------------------------------------------------------------
+
+type ValueStyle =
+  | 'bold'
+  | 'dim'
+  | 'cyan'
+  | 'blue'
+  | 'green'
+  | 'yellow'
+  | 'red'
+  | 'magenta'
+  | null;
+
+const palette = {
+  bold,
+  dim,
+  cyan,
+  blue,
+  green,
+  yellow,
+  red,
+  magenta,
+} as const;
+
+function paint(value: Cell, style: ValueStyle = null): string {
+  const text = String(value ?? '-');
+  return style ? palette[style](text) : text;
+}
+
+function confidenceStyle(confidence: string): ValueStyle {
+  if (confidence === 'high') return 'green';
+  if (confidence === 'medium') return 'yellow';
+  return 'red';
+}
+
+// A metric row is a label, a value, and an optional style for the value.
+type MetricRow = readonly [string, Cell, ValueStyle?];
+
+function renderMetrics(items: readonly MetricRow[], maxWidth: number): string {
+  return renderTable(
+    items.map(([label, value, style]) => [label, paint(value, style)]),
+    ['Metric', 'Value'],
+    {
+      maxWidth,
+      cellStyle: (value, _rowIndex, columnIndex) =>
+        columnIndex === 0 ? cyan(value) : value,
+    },
+  );
 }
 
 function section(titleText: string, subtitle?: string): string {
-  const lines = [
-    title(titleText),
-    dim(cyan('─'.repeat(Math.min(56, titleText.length + 12)))),
-  ];
+  const lines = [bold(cyan(titleText)), dim('─'.repeat(titleText.length))];
   if (subtitle) lines.push(dim(subtitle));
   return lines.join('\n');
 }
 
-function keyValueRows(items: readonly [string, Cell][]): Cell[][] {
-  return items.map(([label, value]) => [label, value]);
-}
-
-function renderMetrics(
-  items: readonly [string, Cell][],
-  maxWidth: number,
-): string {
-  return renderTable(keyValueRows(items), ['Metric', 'Value'], {
-    maxWidth,
-    cellStyle: metricCellStyle,
-  });
-}
-
 function formatTimestamp(value: string | null): string {
-  if (!value) return '-';
+  if (!value) return dim('-');
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? value : dateTime.format(parsed);
 }
 
-function formatNet(additions: number, deletions: number): string {
-  const net = additions - deletions;
-  return `${net >= 0 ? '+' : ''}${number.format(net)}`;
+function signed(value: number): string {
+  return value >= 0 ? `+${number.format(value)}` : number.format(value);
 }
 
-function coloredNet(additions: number, deletions: number): string {
-  const value = formatNet(additions, deletions);
-  return additions - deletions >= 0 ? green(value) : red(value);
+function netValue(additions: number, deletions: number): string {
+  return green(signed(additions - deletions));
 }
 
 function dependencyStatus(status: DependencyStatus): string {
@@ -267,6 +262,22 @@ function shareBar(value: number, width = 14): string {
   const safe = Math.max(0, Math.min(1, value));
   const filled = Math.round(safe * width);
   return `${magenta('█'.repeat(filled))}${dim('░'.repeat(width - filled))}`;
+}
+
+function peakPeriod(items: readonly GitPeriodStats[]): GitPeriodStats | null {
+  return (
+    [...items].sort(
+      (a, b) =>
+        b.commits - a.commits ||
+        b.additions + b.deletions - (a.additions + a.deletions),
+    )[0] ?? null
+  );
+}
+
+function peakLabel(peak: GitPeriodStats | null): string {
+  return peak
+    ? `${peak.period} (${number.format(peak.commits)} commits)`
+    : dim('-');
 }
 
 function sumPeriods(items: readonly GitPeriodStats[]): {
@@ -284,135 +295,70 @@ function sumPeriods(items: readonly GitPeriodStats[]): {
   );
 }
 
-function peakPeriod(items: readonly GitPeriodStats[]): GitPeriodStats | null {
-  return (
-    [...items].sort(
-      (a, b) =>
-        b.commits - a.commits ||
-        b.additions + b.deletions - (a.additions + a.deletions),
-    )[0] ?? null
-  );
-}
-
-function activityRows(
-  items: readonly GitPeriodStats[],
-  range: boolean,
-): Cell[][] {
-  return [...items]
-    .reverse()
-    .map((item) => [
-      item.period,
-      ...(range ? [item.startDate, item.endDate] : []),
-      number.format(item.commits),
-      `+${number.format(item.additions)}`,
-      `-${number.format(item.deletions)}`,
-      coloredNet(item.additions, item.deletions),
-    ]);
-}
-
-function activityCellStyle(
-  value: string,
-  _rowIndex: number,
-  columnIndex: number,
-): string {
-  if (columnIndex === 0) return cyan(value);
-  const plain = stripAnsi(value);
-  if (/^\+/.test(plain)) return green(value);
-  if (/^-/.test(plain)) return red(value);
-  if (/^\d{4}-/.test(plain)) return blue(value);
-  if (/^\d/.test(plain)) return yellow(value);
-  return value;
-}
-
-function renderActivity(
-  heading: string,
-  periodLabel: string,
-  items: readonly GitPeriodStats[],
-  maxWidth: number,
-  range: boolean,
-): string {
-  const headers = [
-    periodLabel,
-    ...(range ? ['Start', 'End'] : []),
-    'Commits',
-    'Added',
-    'Deleted',
-    'Net',
-  ];
-  const align = [
-    'left',
-    ...(range ? ['left', 'left'] : []),
-    'right',
-    'right',
-    'right',
-    'right',
-  ] as Alignment[];
-  const totals = sumPeriods(items);
-  const peak = peakPeriod(items);
-
-  return [
-    section(
-      heading,
-      `${number.format(items.length)} active ${items.length === 1 ? 'period' : 'periods'} · complete selected window`,
-    ),
-    renderMetrics(
-      [
-        ['Active periods', number.format(items.length)],
-        ['Total commits', number.format(totals.commits)],
-        [
-          'Average commits / active period',
-          decimal.format(totals.commits / Math.max(1, items.length)),
-        ],
-        [
-          'Busiest period',
-          peak
-            ? `${peak.period} · ${number.format(peak.commits)} commits`
-            : '-',
-        ],
-        ['Added lines', `+${number.format(totals.additions)}`],
-        ['Deleted lines', `-${number.format(totals.deletions)}`],
-        ['Net change', coloredNet(totals.additions, totals.deletions)],
-      ],
-      maxWidth,
-    ),
-    '',
-    renderTable(activityRows(items, range), headers, {
-      align,
-      maxWidth,
-      cellStyle: activityCellStyle,
-    }),
-  ].join('\n');
-}
-
 function renderBanner(report: FarsightReport, maxWidth: number): string {
-  const width = Math.max(44, Math.min(maxWidth, 120));
-  const inner = width - 4;
   const packageName = report.package?.name ?? 'Unnamed project';
   const packageVersion = report.package?.version
     ? ` v${report.package.version}`
     : '';
-  const headline = `FARSIGHT  ${packageName}${packageVersion}`;
+  const headline = `FARSIGHT${packageVersion}`;
   const root = report.root;
-  const fit = (value: string): string => fitCell(value, inner, 'left');
+
+  const plainWidths = [headline.length, packageName.length, root.length];
+  const inner = Math.min(Math.max(...plainWidths), Math.max(20, maxWidth - 4));
+  const border = (left: string, right: string): string =>
+    dim(`${left}${'─'.repeat(inner + 2)}${right}`);
+
+  const line = (value: string, style: (text: unknown) => string): string =>
+    `${dim('│ ')}${style(fitCell(value, inner, 'left'))}${dim(' │')}`;
 
   return [
-    cyan(`╭${'─'.repeat(width - 2)}╮`),
-    cyan('│ ') + bold(fit(headline)) + cyan(' │'),
-    cyan('│ ') + dim(fit(root)) + cyan(' │'),
-    cyan(`╰${'─'.repeat(width - 2)}╯`),
+    border('╭', '╮'),
+    line(headline, (text) => bold(cyan(text))),
+    line(packageName, (text) => bold(text)),
+    line(root, dim),
+    border('╰', '╯'),
   ].join('\n');
-}
-
-function dependencySummary(report: FarsightReport): string {
-  if (!report.dependencies.available) return 'Unavailable';
-  if (!report.dependencies.checked) return 'Not checked';
-  if (report.dependencies.outdatedCount === 0) return 'Up to date';
-  return `${number.format(report.dependencies.outdatedCount)} updates`;
 }
 
 function renderOverview(report: FarsightReport, maxWidth: number): string {
   const gitAvailable = report.git.available;
   const dominantLanguage = report.project.languages[0];
+
+  let dependenciesRow: MetricRow;
+  if (!report.dependencies.available) {
+    dependenciesRow = ['Dependencies', 'Unavailable', 'dim'];
+  } else if (!report.dependencies.checked) {
+    dependenciesRow = ['Dependencies', 'Not checked', 'dim'];
+  } else if (report.dependencies.outdatedCount === 0) {
+    dependenciesRow = ['Dependencies', 'Up to date', 'green'];
+  } else {
+    dependenciesRow = [
+      'Dependencies',
+      `${number.format(report.dependencies.outdatedCount)} updates`,
+      'yellow',
+    ];
+  }
+
+  const gitRows: MetricRow[] = gitAvailable
+    ? [
+        [
+          'Git branch',
+          report.git.branch ?? '-',
+          report.git.branch ? null : 'dim',
+        ],
+        ['Git commits', number.format(report.git.commits)],
+        ['Contributors', number.format(report.git.contributorsCount)],
+        [
+          'Git changes',
+          `${green(`+${number.format(report.git.additions)}`)} / ${red(`-${number.format(report.git.deletions)}`)}`,
+        ],
+      ]
+    : [
+        ['Git branch', 'Unavailable', 'dim'],
+        ['Git commits', 'Unavailable', 'dim'],
+        ['Contributors', 'Unavailable', 'dim'],
+        ['Git changes', 'Unavailable', 'dim'],
+      ];
 
   return [
     renderBanner(report, maxWidth),
@@ -420,44 +366,35 @@ function renderOverview(report: FarsightReport, maxWidth: number): string {
     section('Overview', `Generated ${formatTimestamp(report.generatedAt)}`),
     renderMetrics(
       [
-        ['Project type', magenta(report.project.primary)],
-        ['Ecosystem', blue(report.project.ecosystem)],
-        ['Framework', report.project.framework ?? '-'],
+        ['Project type', report.project.primary, 'magenta'],
+        ['Ecosystem', report.project.ecosystem, 'blue'],
+        [
+          'Framework',
+          report.project.framework ?? '-',
+          report.project.framework ? null : 'dim',
+        ],
         ['Project kind', report.project.kind],
-        ['Detection confidence', report.project.confidence],
+        [
+          'Detection confidence',
+          report.project.confidence,
+          confidenceStyle(report.project.confidence),
+        ],
         [
           'Toolchain / package manager',
           report.project.packageManager ?? 'Not detected',
+          report.project.packageManager ? null : 'dim',
         ],
         [
           'Dominant language',
           dominantLanguage
-            ? `${dominantLanguage.extension} · ${number.format(dominantLanguage.nonEmptyLines)} lines`
+            ? `${dominantLanguage.extension}, ${number.format(dominantLanguage.nonEmptyLines)} lines`
             : '-',
+          dominantLanguage ? null : 'dim',
         ],
         ['Source files', number.format(report.loc.files)],
         ['Non-empty lines', number.format(report.loc.nonEmpty)],
-        ['Dependencies', dependencySummary(report)],
-        [
-          'Git branch',
-          gitAvailable ? (report.git.branch ?? '-') : 'Unavailable',
-        ],
-        [
-          'Git commits',
-          gitAvailable ? number.format(report.git.commits) : 'Unavailable',
-        ],
-        [
-          'Contributors',
-          gitAvailable
-            ? number.format(report.git.contributorsCount)
-            : 'Unavailable',
-        ],
-        [
-          'Git changes',
-          gitAvailable
-            ? `${green(`+${number.format(report.git.additions)}`)} / ${red(`-${number.format(report.git.deletions)}`)}`
-            : 'Unavailable',
-        ],
+        dependenciesRow,
+        ...gitRows,
       ],
       maxWidth,
     ),
@@ -486,8 +423,9 @@ function renderInsights(report: FarsightReport, maxWidth: number): string {
         [
           'Dominant source share',
           dominant
-            ? `${dominant.extension} · ${percent.format(dominantShare)}`
+            ? `${dominant.extension}, ${percent.format(dominantShare)}`
             : '-',
+          dominant ? null : 'dim',
         ],
         ['Non-empty line density', percent.format(codeDensity)],
         [
@@ -495,6 +433,7 @@ function renderInsights(report: FarsightReport, maxWidth: number): string {
           report.dependencies.available
             ? `${number.format(healthyDependencies)} current / ${number.format(report.dependencies.outdatedCount)} need attention`
             : 'Unavailable',
+          report.dependencies.available ? null : 'dim',
         ],
       ],
       maxWidth,
@@ -538,21 +477,11 @@ function renderInsights(report: FarsightReport, maxWidth: number): string {
             'Top contributor share',
             percent.format(report.git.topContributorShare),
           ],
-          [
-            'Peak day',
-            peakDay
-              ? `${peakDay.period} · ${number.format(peakDay.commits)} commits`
-              : '-',
-          ],
-          [
-            'Peak week',
-            peakWeek
-              ? `${peakWeek.period} · ${number.format(peakWeek.commits)} commits`
-              : '-',
-          ],
+          ['Peak day', peakLabel(peakDay), peakDay ? 'blue' : 'dim'],
+          ['Peak week', peakLabel(peakWeek), peakWeek ? 'blue' : 'dim'],
           [
             'Net source change',
-            coloredNet(report.git.additions, report.git.deletions),
+            netValue(report.git.additions, report.git.deletions),
           ],
         ],
         maxWidth,
@@ -568,26 +497,51 @@ function renderProject(report: FarsightReport, maxWidth: number): string {
     ? report.package.private
       ? 'private'
       : 'public'
-    : 'package.json not found';
+    : null;
 
   const blocks = [
     section('Project details'),
     renderMetrics(
       [
         ['Root', report.root],
-        ['Package', report.package?.name ?? '-'],
-        ['Version', report.package?.version ?? '-'],
-        ['Visibility', packageState],
-        ['Detected type', magenta(report.project.primary)],
-        ['Ecosystem', blue(report.project.ecosystem)],
-        ['Framework', report.project.framework ?? '-'],
+        [
+          'Package',
+          report.package?.name ?? '-',
+          report.package?.name ? null : 'dim',
+        ],
+        [
+          'Version',
+          report.package?.version ?? '-',
+          report.package?.version ? null : 'dim',
+        ],
+        [
+          'Visibility',
+          packageState ?? 'package.json not found',
+          packageState === 'private' ? 'yellow' : packageState ? null : 'dim',
+        ],
+        ['Detected type', report.project.primary, 'magenta'],
+        ['Ecosystem', report.project.ecosystem, 'blue'],
+        [
+          'Framework',
+          report.project.framework ?? '-',
+          report.project.framework ? null : 'dim',
+        ],
         ['Project kind', report.project.kind],
-        ['Detection confidence', report.project.confidence],
+        [
+          'Detection confidence',
+          report.project.confidence,
+          confidenceStyle(report.project.confidence),
+        ],
         [
           'Toolchain / package manager',
           report.project.packageManager ?? 'Not detected',
+          report.project.packageManager ? null : 'dim',
         ],
-        ['Traits', report.project.traits.join(', ') || '-'],
+        [
+          'Traits',
+          report.project.traits.join(', ') || '-',
+          report.project.traits.length ? null : 'dim',
+        ],
         ['Generated at', formatTimestamp(report.generatedAt)],
       ],
       maxWidth,
@@ -612,12 +566,8 @@ function renderProject(report: FarsightReport, maxWidth: number): string {
         {
           maxWidth,
           align: ['left', 'right', 'right', 'left'],
-          cellStyle: (value, _row, column) => {
-            if (column === 0) return magenta(value);
-            if (column === 1) return green(value);
-            if (column === 2) return cyan(value);
-            return value;
-          },
+          cellStyle: (value, _row, column) =>
+            column === 0 ? cyan(value) : value,
         },
       ),
     );
@@ -637,7 +587,7 @@ function renderProject(report: FarsightReport, maxWidth: number): string {
           maxWidth,
           align: ['right', 'left'],
           cellStyle: (value, _row, column) =>
-            column === 0 ? yellow(value) : blue(value),
+            column === 0 ? dim(value) : value,
         },
       ),
     );
@@ -660,9 +610,9 @@ function renderProject(report: FarsightReport, maxWidth: number): string {
         {
           maxWidth,
           cellStyle: (value, _row, column) => {
-            if (column === 0) return magenta(value);
-            if (column === 2) return blue(value);
-            return green(value);
+            if (column === 0) return cyan(value);
+            if (column === 2) return dim(value);
+            return value;
           },
         },
       ),
@@ -693,9 +643,14 @@ function renderDependencies(report: FarsightReport, maxWidth: number): string {
         [
           'Registry check',
           report.dependencies.checked ? 'Completed' : 'Skipped',
+          report.dependencies.checked ? 'green' : 'dim',
         ],
         ['Current', number.format(currentCount)],
-        ['Needs attention', number.format(report.dependencies.outdatedCount)],
+        [
+          'Needs attention',
+          number.format(report.dependencies.outdatedCount),
+          report.dependencies.outdatedCount > 0 ? 'yellow' : null,
+        ],
         [
           'Current share',
           percent.format(
@@ -743,10 +698,8 @@ function renderDependencies(report: FarsightReport, maxWidth: number): string {
           maxWidth,
           cellStyle: (value, _row, column) => {
             if (column === 0) return cyan(value);
-            if (column === 1) return magenta(value);
-            if (column === 2 || column === 3) return dim(value);
-            if (column === 4) return yellow(value);
-            if (column === 5) return green(value);
+            if (column === 2) return dim(value);
+            if (column === 3 && value === 'not installed') return red(value);
             return value;
           },
         },
@@ -791,10 +744,15 @@ function renderCode(report: FarsightReport, maxWidth: number): string {
         [
           'Dominant extension',
           dominant
-            ? `${dominant[0]} · ${percent.format(dominant[1].nonEmpty / Math.max(1, report.loc.nonEmpty))}`
+            ? `${dominant[0]}, ${percent.format(dominant[1].nonEmpty / Math.max(1, report.loc.nonEmpty))}`
             : '-',
+          dominant ? null : 'dim',
         ],
-        ['Skipped large files', number.format(report.loc.skippedLargeFiles)],
+        [
+          'Skipped large files',
+          number.format(report.loc.skippedLargeFiles),
+          report.loc.skippedLargeFiles > 0 ? 'yellow' : null,
+        ],
       ],
       maxWidth,
     ),
@@ -806,14 +764,8 @@ function renderCode(report: FarsightReport, maxWidth: number): string {
       {
         maxWidth,
         align: ['left', 'right', 'right', 'right', 'right', 'left'],
-        cellStyle: (value, _row, column) => {
-          if (column === 0) return magenta(value);
-          if (column === 1) return cyan(value);
-          if (column === 2) return yellow(value);
-          if (column === 3) return green(value);
-          if (column === 4) return blue(value);
-          return value;
-        },
+        cellStyle: (value, _row, column) =>
+          column === 0 ? cyan(value) : value,
       },
     ),
   ].join('\n');
@@ -832,9 +784,9 @@ function renderGit(report: FarsightReport, maxWidth: number): string {
     renderMetrics(
       [
         ['Window', `Last ${number.format(report.git.periodDays ?? 0)} days`],
-        ['First active date', earliestDay ?? '-'],
-        ['Branch', report.git.branch ?? '-'],
-        ['Remote', report.git.remote ?? '-'],
+        ['First active date', earliestDay ?? '-', earliestDay ? 'blue' : 'dim'],
+        ['Branch', report.git.branch ?? '-', report.git.branch ? null : 'dim'],
+        ['Remote', report.git.remote ?? '-', 'dim'],
         ['Last commit', formatTimestamp(report.git.lastCommitAt)],
         ['Non-merge commits', number.format(report.git.commits)],
         ['Active days', number.format(report.git.activeDays)],
@@ -845,9 +797,9 @@ function renderGit(report: FarsightReport, maxWidth: number): string {
           ),
         ],
         ['Contributors', number.format(report.git.contributorsCount)],
-        ['Additions', green(`+${number.format(report.git.additions)}`)],
-        ['Deletions', red(`-${number.format(report.git.deletions)}`)],
-        ['Net change', coloredNet(report.git.additions, report.git.deletions)],
+        ['Additions', signed(report.git.additions), 'green'],
+        ['Deletions', `-${number.format(report.git.deletions)}`, 'red'],
+        ['Net change', netValue(report.git.additions, report.git.deletions)],
         [
           'Changed lines / commit',
           decimal.format(
@@ -859,12 +811,7 @@ function renderGit(report: FarsightReport, maxWidth: number): string {
           'Top contributor share',
           percent.format(report.git.topContributorShare),
         ],
-        [
-          'Peak day',
-          peakDay
-            ? `${peakDay.period} · ${number.format(peakDay.commits)} commits`
-            : '-',
-        ],
+        ['Peak day', peakLabel(peakDay), peakDay ? 'blue' : 'dim'],
       ],
       maxWidth,
     ),
@@ -879,7 +826,7 @@ function renderContributors(report: FarsightReport, maxWidth: number): string {
   return [
     section(
       'Contributors',
-      `Showing ${number.format(report.git.contributors.length)} of ${number.format(report.git.contributorsCount)} · sorted by commits`,
+      `Showing ${number.format(report.git.contributors.length)} of ${number.format(report.git.contributorsCount)}, sorted by commits`,
     ),
     renderMetrics(
       [
@@ -893,8 +840,9 @@ function renderContributors(report: FarsightReport, maxWidth: number): string {
         [
           'Top contributor',
           topContributor
-            ? `${topContributor.name} · ${number.format(topContributor.commits)} commits`
+            ? `${topContributor.name} (${number.format(topContributor.commits)} commits)`
             : '-',
+          topContributor ? null : 'dim',
         ],
         [
           'Top contributor share',
@@ -912,7 +860,7 @@ function renderContributors(report: FarsightReport, maxWidth: number): string {
         number.format(item.activeDays),
         item.firstCommitAt ?? '-',
         item.lastCommitAt ?? '-',
-        `+${number.format(item.additions)}`,
+        signed(item.additions),
         `-${number.format(item.deletions)}`,
         percent.format(item.commits / Math.max(1, report.git.commits)),
       ]),
@@ -943,8 +891,6 @@ function renderContributors(report: FarsightReport, maxWidth: number): string {
         cellStyle: (value, _row, column) => {
           if (column === 0) return cyan(value);
           if (column === 1) return dim(value);
-          if (column === 2) return yellow(value);
-          if (column === 3 || column === 8) return magenta(value);
           if (column === 4 || column === 5) return blue(value);
           if (column === 6) return green(value);
           if (column === 7) return red(value);
@@ -952,6 +898,102 @@ function renderContributors(report: FarsightReport, maxWidth: number): string {
         },
       },
     ),
+  ].join('\n');
+}
+
+function activityRows(
+  items: readonly GitPeriodStats[],
+  range: boolean,
+): Cell[][] {
+  return [...items]
+    .reverse()
+    .map((item) => [
+      item.period,
+      ...(range ? [item.startDate, item.endDate] : []),
+      number.format(item.commits),
+      signed(item.additions),
+      `-${number.format(item.deletions)}`,
+      signed(item.additions - item.deletions),
+    ]);
+}
+
+function activityCellStyle(
+  value: string,
+  _rowIndex: number,
+  columnIndex: number,
+  range: boolean,
+): string {
+  // Daily rows: date, commits, added, deleted, net.
+  // Weekly and monthly rows: period, start, end, commits, added, deleted, net.
+  const dateColumns = range ? [1, 2] : [0];
+  const periodColumn = range ? 0 : null;
+  const addedColumn = range ? 4 : 2;
+  const deletedColumn = range ? 5 : 3;
+  const netColumn = range ? 6 : 4;
+
+  if (periodColumn !== null && columnIndex === periodColumn) return cyan(value);
+  if (dateColumns.includes(columnIndex)) return blue(value);
+  if (columnIndex === addedColumn) return green(value);
+  if (columnIndex === deletedColumn) return red(value);
+  if (columnIndex === netColumn)
+    return value.startsWith('-') ? red(value) : green(value);
+  return value;
+}
+
+function renderActivity(
+  heading: string,
+  periodLabel: string,
+  items: readonly GitPeriodStats[],
+  maxWidth: number,
+  range: boolean,
+): string {
+  const headers = [
+    periodLabel,
+    ...(range ? ['Start', 'End'] : []),
+    'Commits',
+    'Added',
+    'Deleted',
+    'Net',
+  ];
+  const align = [
+    'left',
+    ...(range ? ['left', 'left'] : []),
+    'right',
+    'right',
+    'right',
+    'right',
+  ] as Alignment[];
+  const totals = sumPeriods(items);
+  const peak = peakPeriod(items);
+  const subtitle =
+    items.length === 1
+      ? '1 active period, newest first'
+      : `${number.format(items.length)} active periods, newest first`;
+
+  return [
+    section(heading, subtitle),
+    renderMetrics(
+      [
+        ['Active periods', number.format(items.length)],
+        ['Total commits', number.format(totals.commits)],
+        [
+          'Average commits / active period',
+          decimal.format(totals.commits / Math.max(1, items.length)),
+        ],
+        ['Busiest period', peakLabel(peak), peak ? null : 'dim'],
+        ['Added lines', signed(totals.additions), 'green'],
+        ['Deleted lines', `-${number.format(totals.deletions)}`, 'red'],
+        ['Net change', netValue(totals.additions, totals.deletions)],
+      ],
+      maxWidth,
+    ),
+    '',
+    renderTable(activityRows(items, range), headers, {
+      align,
+      maxWidth,
+      cellStyle: (value, rowIndex, columnIndex) =>
+        activityCellStyle(value, rowIndex, columnIndex, range),
+    }),
   ].join('\n');
 }
 
